@@ -25,7 +25,7 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes (populated as each feature is built)
-// app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/auth', require('./routes/auth.routes'));
 // app.use('/api/goals', require('./routes/goal.routes'));
 // app.use('/api/checkins', require('./routes/checkin.routes'));
 // app.use('/api/partnerships', require('./routes/partnership.routes'));
