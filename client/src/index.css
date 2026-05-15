@@ -2,22 +2,90 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@600;700;800&display=swap');
+
 @layer base {
   body {
-    @apply bg-surface text-text font-sans antialiased;
+    @apply bg-base text-text font-sans antialiased;
   }
   
   h1, h2, h3, h4, h5, h6 {
+    font-family: 'Montserrat', sans-serif;
     @apply font-semibold tracking-tight;
   }
 }
 
+
 @layer components {
   .btn-primary {
-    @apply bg-primary text-white px-4 py-2 rounded-md hover:opacity-90 transition-opacity flex items-center justify-center;
+    background-color: #00685f;
+    color: #ffffff;
+    font-family: 'Montserrat', sans-serif;
+    @apply px-6 py-3 rounded font-bold transition-colors flex items-center justify-center;
+  }
+  .btn-primary:hover {
+    background-color: #008378;
   }
   
   .btn-secondary {
-    @apply bg-surface text-primary border border-primary/20 px-4 py-2 rounded-md hover:bg-white transition-colors flex items-center justify-center;
+    background-color: #ffffff;
+    color: #00685f;
+    border: 1px solid rgba(0, 104, 95, 0.2);
+    font-family: 'Montserrat', sans-serif;
+    @apply px-6 py-3 rounded font-bold transition-colors flex items-center justify-center;
   }
+  .btn-secondary:hover {
+    background-color: #e5eeff;
+  }
+}
+
+/* Animations from Aetheria Inspiration */
+.animate-on-scroll-hidden {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.animate-on-scroll-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hero-text-stagger {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.image-zoom-reveal {
+  transform: scale(1.15);
+  transition: transform 2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.image-zoom-reveal.active {
+  transform: scale(1);
+}
+
+.reveal-overlay {
+  position: absolute;
+  inset: 0;
+  background: #f8f9ff; /* bg-base color */
+  z-index: 15;
+  transform-origin: bottom;
+  transition: transform 1.5s cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+.reveal-overlay.active {
+  transform: scaleY(0);
+}
+
+@layer components {
+  /* ... existing component classes ... */
 }
