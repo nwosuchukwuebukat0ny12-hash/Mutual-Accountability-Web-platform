@@ -24,6 +24,9 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'Mutual API is running' });
 });
 
+// API Routes
+app.use('/api/goals', require('./routes/goal.routes'));
+// app.use('/api/auth', require('./routes/auth.routes'));
 // API Routes (populated as each feature is built)
 app.use('/api/auth', require('./routes/auth.routes'));
 // app.use('/api/goals', require('./routes/goal.routes'));
