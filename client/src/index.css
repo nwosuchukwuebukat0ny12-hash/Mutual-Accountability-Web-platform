@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-surface text-text font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white px-4 py-2 rounded-md hover:opacity-90 transition-opacity flex items-center justify-center;
+  }
+  
+  .btn-secondary {
+    @apply bg-surface text-primary border border-primary/20 px-4 py-2 rounded-md hover:bg-white transition-colors flex items-center justify-center;
+  }
+}
