@@ -2,22 +2,136 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --primary: #00685f;
+  --primary-dark: #004d46;
+  --secondary: #855300;
+  --bg-slate: #f8fafc;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+}
+
 @layer base {
   body {
-    @apply bg-surface text-text font-sans antialiased;
+    background-color: var(--bg-slate);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  
+
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
+    font-family: 'Montserrat', sans-serif;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary text-white px-4 py-2 rounded-md hover:opacity-90 transition-opacity flex items-center justify-center;
+    background-color: var(--primary);
+    color: white;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
-  .btn-secondary {
-    @apply bg-surface text-primary border border-primary/20 px-4 py-2 rounded-md hover:bg-white transition-colors flex items-center justify-center;
+
+  .btn-primary:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 20px 40px rgba(0, 104, 95, 0.2);
+  }
+
+  .btn-outline {
+    border: 1px solid rgba(0,0,0,0.1);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: all 0.3s ease;
+  }
+
+  .btn-outline:hover {
+    background-color: rgba(0,0,0,0.05);
   }
 }
+
+/* --- Scroll Reveal Core --- */
+
+.animate-on-scroll-hidden {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: all 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.animate-on-scroll-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hero-text-stagger {
+  opacity: 0;
+  animation: fadeInUp 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* --- Sequential Morph Reveal Engine --- */
+
+.morph-container {
+  @apply relative overflow-hidden rounded-lg aspect-video shadow-3xl;
+}
+
+.morph-slider {
+  position: absolute;
+  inset: 0;
+  background-color: var(--primary);
+  z-index: 40;
+  transform: translateX(-100%);
+}
+
+.animate-morph .morph-slider {
+  animation: tripleSweep 9s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+}
+
+@keyframes tripleSweep {
+  0%, 10% { transform: translateX(-100%); }
+  20%, 30% { transform: translateX(0); }
+  40%, 50% { transform: translateX(100%); }
+  60%, 70% { transform: translateX(0); }
+  80%, 90% { transform: translateX(-100%); }
+}
+
+.morph-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Image Layering & Infinite Reveal */
+.morph-img-1 { z-index: 10; }
+.morph-img-2 { z-index: 20; opacity: 0; }
+.morph-img-3 { z-index: 30; opacity: 0; }
+
+.animate-morph .morph-img-2 {
+  animation: fadeStage 9s steps(1) infinite;
+  animation-delay: 2.25s; /* Synced with first sweep */
+}
+
+.animate-morph .morph-img-3 {
+  animation: fadeStage 9s steps(1) infinite;
+  animation-delay: 4.5s; /* Synced with second sweep */
+}
+
+@keyframes fadeStage {
+  0%, 33% { opacity: 1; }
+  34%, 100% { opacity: 0; }
+}
+
+/* Legacy Cleanup */
+.reveal-overlay-container { position: relative; overflow: hidden; }
+.image-zoom-reveal { transition: transform 2.5s cubic-bezier(0.22, 1, 0.36, 1); }
