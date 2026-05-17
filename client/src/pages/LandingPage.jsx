@@ -39,7 +39,7 @@ const LandingPage = () => {
             <div className="w-8 h-8 bg-primary flex items-center justify-center text-white font-heading font-bold text-xl transition-transform group-hover:scale-110">M</div>
             <span className="font-heading font-bold tracking-tighter text-2xl group-hover:italic transition-all">MUTUAL</span>
           </Link>
-          
+
           <div className="hidden md:flex items-center gap-8 font-heading text-xs uppercase tracking-widest font-semibold opacity-60">
             <a href="#philosophy" className="hover:opacity-100 transition-opacity">Philosophy</a>
             <a href="#system" className="hover:opacity-100 transition-opacity">The System</a>
@@ -52,7 +52,7 @@ const LandingPage = () => {
           </div>
 
           {/* Mobile Menu Trigger */}
-          <button 
+          <button
             className="md:hidden flex flex-col gap-1.5"
             onClick={() => setIsMenuOpen(true)}
           >
@@ -66,7 +66,7 @@ const LandingPage = () => {
       {/* Mobile Menu Overlay */}
       <div className={`fixed inset-0 z-[60] bg-primary text-white transition-transform duration-700 ease-in-out transform ${isMenuOpen ? 'translate-y-0' : '-translate-y-full'}`}>
         <div className="h-full flex flex-col items-center justify-center gap-12 p-12">
-          <button 
+          <button
             className="absolute top-12 right-12 text-4xl font-light hover:rotate-90 transition-transform text-white/60 hover:text-white"
             onClick={() => setIsMenuOpen(false)}
           >✕</button>
@@ -99,7 +99,7 @@ const LandingPage = () => {
               <Link to="/register" className="btn-primary px-12 py-5 text-lg md:text-xl shadow-2xl shadow-primary/20 hover:-translate-y-1">
                 Join the System
               </Link>
-              <button className="px-12 py-5 text-lg md:text-xl font-heading font-bold border border-black/10 hover:bg-black/5 transition-all">
+              <button className="btn-outline px-12 py-5 text-lg md:text-xl transition-all">
                 Request Invitation
               </button>
             </div>
@@ -109,22 +109,22 @@ const LandingPage = () => {
           <div className="mt-24 md:mt-32 px-4 md:px-0">
             <div className="morph-container morph-reveal-trigger max-w-5xl mx-auto" data-animation-on-scroll>
               {/* Image Layers */}
-              <img 
-                src="https://images.unsplash.com/photo-1658855305528-e73fac4f1ba0?auto=format&fit=crop&q=80&w=2000" 
-                alt="Partnership Base" 
+              <img
+                src="https://images.unsplash.com/photo-1658855305528-e73fac4f1ba0?auto=format&fit=crop&q=80&w=2000"
+                alt="Partnership Base"
                 className="morph-image morph-img-1"
               />
-              <img 
-                src="https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=900&auto=format&fit=crop&q=60" 
-                alt="Team Sync" 
+              <img
+                src="https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=900&auto=format&fit=crop&q=60"
+                alt="Team Sync"
                 className="morph-image morph-img-2"
               />
-              <img 
-                src="https://images.unsplash.com/photo-1594999791384-9870ed78f6b0?w=900&auto=format&fit=crop&q=60" 
-                alt="Mutual Success" 
+              <img
+                src="https://images.unsplash.com/photo-1594999791384-9870ed78f6b0?w=900&auto=format&fit=crop&q=60"
+                alt="Mutual Success"
                 className="morph-image morph-img-3"
               />
-              
+
               {/* The "Green Slider" (Teal Bar) */}
               <div className="morph-slider"></div>
             </div>
@@ -271,7 +271,7 @@ const LandingPage = () => {
           </Link>
           <div className="mt-24 w-full h-[1px] bg-white/10 mb-12"></div>
           <div className="flex flex-col md:flex-row justify-between items-center w-full gap-8 opacity-40 font-heading text-[10px] uppercase tracking-widest">
-            <span>© 2024 MUTUAL SYSTEM</span>
+            <span>© 2026 MUTUAL SYSTEM</span>
             <div className="flex gap-8">
               <span>All rights reserved</span>
               <span className="hidden md:inline">London / New York / Lagos</span>

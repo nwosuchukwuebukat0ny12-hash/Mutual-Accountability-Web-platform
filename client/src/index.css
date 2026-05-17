@@ -1,6 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
 
 :root {
   --primary: #00685f;
@@ -19,7 +22,12 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: 'Montserrat', sans-serif;
   }
 }
@@ -29,6 +37,7 @@
     background-color: var(--primary);
     color: white;
     font-family: 'Montserrat', sans-serif;
+    border-radius: 5px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -42,16 +51,17 @@
   }
 
   .btn-outline {
-    border: 1px solid rgba(0,0,0,0.1);
+    border: 1px solid rgba(0, 0, 0, 0.1);
     font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
+    font-weight: 500;
+    border-radius: 5px;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0em;
     transition: all 0.3s ease;
   }
 
   .btn-outline:hover {
-    background-color: rgba(0,0,0,0.05);
+    background-color: rgba(0, 0, 0, 0.05);
   }
 }
 
@@ -69,8 +79,15 @@
 }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .hero-text-stagger {
@@ -97,11 +114,31 @@
 }
 
 @keyframes tripleSweep {
-  0%, 10% { transform: translateX(-100%); }
-  20%, 30% { transform: translateX(0); }
-  40%, 50% { transform: translateX(100%); }
-  60%, 70% { transform: translateX(0); }
-  80%, 90% { transform: translateX(-100%); }
+
+  0%,
+  10% {
+    transform: translateX(-100%);
+  }
+
+  20%,
+  30% {
+    transform: translateX(0);
+  }
+
+  40%,
+  50% {
+    transform: translateX(100%);
+  }
+
+  60%,
+  70% {
+    transform: translateX(0);
+  }
+
+  80%,
+  90% {
+    transform: translateX(-100%);
+  }
 }
 
 .morph-image {
@@ -113,25 +150,51 @@
 }
 
 /* Image Layering & Infinite Reveal */
-.morph-img-1 { z-index: 10; }
-.morph-img-2 { z-index: 20; opacity: 0; }
-.morph-img-3 { z-index: 30; opacity: 0; }
+.morph-img-1 {
+  z-index: 10;
+}
+
+.morph-img-2 {
+  z-index: 20;
+  opacity: 0;
+}
+
+.morph-img-3 {
+  z-index: 30;
+  opacity: 0;
+}
 
 .animate-morph .morph-img-2 {
   animation: fadeStage 9s steps(1) infinite;
-  animation-delay: 2.25s; /* Synced with first sweep */
+  animation-delay: 2.25s;
+  /* Synced with first sweep */
 }
 
 .animate-morph .morph-img-3 {
   animation: fadeStage 9s steps(1) infinite;
-  animation-delay: 4.5s; /* Synced with second sweep */
+  animation-delay: 4.5s;
+  /* Synced with second sweep */
 }
 
 @keyframes fadeStage {
-  0%, 33% { opacity: 1; }
-  34%, 100% { opacity: 0; }
+
+  0%,
+  33% {
+    opacity: 1;
+  }
+
+  34%,
+  100% {
+    opacity: 0;
+  }
 }
 
 /* Legacy Cleanup */
-.reveal-overlay-container { position: relative; overflow: hidden; }
-.image-zoom-reveal { transition: transform 2.5s cubic-bezier(0.22, 1, 0.36, 1); }
+.reveal-overlay-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.image-zoom-reveal {
+  transition: transform 2.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
