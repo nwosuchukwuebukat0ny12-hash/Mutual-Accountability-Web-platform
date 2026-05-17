@@ -9,7 +9,7 @@ const UserSchema = new Schema({
   timezone: { type: String, required: true, default: 'UTC' },
   bio: { type: String, maxLength: 200 },
   avatar: { type: String, default: '' },
-  categories: [{ type: String, enum: ['fitness', 'study', 'career', 'health', 'habit', 'creative', 'other'] }],
+  categories: [{ type: String, enum: ['fitness', 'study', 'career', 'habit', 'other'] }],
 
   // Stats
   currentStreak: { type: Number, default: 0 },

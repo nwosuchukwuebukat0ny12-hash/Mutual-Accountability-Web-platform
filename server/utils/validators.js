@@ -15,6 +15,16 @@ const createGoalSchema = z.object({
   }),
 });
 
+// Schema for submitting a check-in
+const checkInSchema = z.object({
+  status: z.enum(['done', 'missed', 'partial'], {
+    errorMap: () => ({ message: 'Status must be done, missed, or partial' }),
+  }),
+  progress: z.number().min(0).max(100, 'Progress must be between 0 and 100').optional(),
+  note: z.string().max(500, 'Note cannot exceed 500 characters').optional(),
+});
+
 module.exports = {
   createGoalSchema,
+  checkInSchema,
 };
