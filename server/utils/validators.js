@@ -16,6 +16,19 @@ const createGoalSchema = z.object({
 });
 
 // Schema for submitting a check-in
+const submitCheckInSchema = z.object({
+  goalId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid goal ID format'),
+  note: z.string().min(1, 'Check-in note (proof) is required').max(500, 'Note cannot exceed 500 characters'),
+  stake: z.string().max(100, 'Stake cannot exceed 100 characters').optional(),
+});
+
+// Schema for sending a partnership invitation
+const sendInvitationSchema = z.object({
+  partnerId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid partner ID format'),
+  goalId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid goal ID format').optional(),
+});
+
+// Deprecated V1 schema (kept for backwards compatibility if needed)
 const checkInSchema = z.object({
   status: z.enum(['done', 'missed', 'partial'], {
     errorMap: () => ({ message: 'Status must be done, missed, or partial' }),
@@ -26,5 +39,7 @@ const checkInSchema = z.object({
 
 module.exports = {
   createGoalSchema,
+  submitCheckInSchema,
+  sendInvitationSchema,
   checkInSchema,
 };
