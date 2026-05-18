@@ -13,10 +13,18 @@ const createGoalSchema = z.object({
   frequency: z.enum(['daily', 'every2days', 'weekly'], {
     errorMap: () => ({ message: 'Invalid frequency' }),
   }),
+  timezone: z.string().optional(),
+  milestones: z.array(z.object({
+    title: z.string().min(1, 'Milestone title is required'),
+    targetDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+      message: 'Invalid milestone target date',
+    }),
+  })).optional(),
 });
 
 // Schema for submitting a check-in
 const checkInSchema = z.object({
+  goalId: z.string().min(1, 'Goal ID is required'),
   status: z.enum(['done', 'missed', 'partial'], {
     errorMap: () => ({ message: 'Status must be done, missed, or partial' }),
   }),
