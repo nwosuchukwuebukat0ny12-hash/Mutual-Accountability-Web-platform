@@ -164,6 +164,11 @@ const approveCheckIn = async (req, res) => {
       newCurrentStreak = 1;
     }
 
+    // Safety Net: if currentStreak is 0 but we have approved check-ins, it must be at least 1!
+    if (newCurrentStreak === 0) {
+      newCurrentStreak = 1;
+    }
+
     // Update longest streak
     const longestStreak = Math.max(checkinOwner.longestStreak, newCurrentStreak);
 
