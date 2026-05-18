@@ -3,6 +3,56 @@ const User = require('../models/User');
 const Goal = require('../models/Goal');
 
 /**
+ * @desc    Search for an accountability partner by username
+ * @route   GET /api/partnerships/search
+ * @access  Private
+ */
+const searchPartner = async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) {
+      return res.status(400).json({ success: false, message: 'Username is required' });
+    }
+
+    const partner = await User.findOne({ username: username.toLowerCase().trim() })
+      .select('name username avatar bio currentStreak categories');
+
+    if (!partner) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Dynamic compatibility score calculation based on shared focus categories!
+    const myCategories = req.user.categories || [];
+    const partnerCategories = partner.categories || [];
+    const shared = myCategories.filter(c => partnerCategories.includes(c));
+    const baseCompatibility = 75;
+    const mutualCompatibility = Math.min(99, baseCompatibility + (shared.length * 10) + Math.floor(Math.random() * 5));
+
+    // Map to response format expected by Ebuka's custom UI cards
+    const mappedUser = {
+      _id: partner._id,
+      name: partner.name,
+      username: partner.username,
+      avatar: partner.avatar,
+      bio: partner.bio || "No bio set yet. Dedicated accountability seeker.",
+      mutualCompatibility,
+      focusCategories: partner.categories.length > 0 ? partner.categories : ["study", "habit"]
+    };
+
+    res.status(200).json({
+      success: true,
+      data: mappedUser,
+    });
+  } catch (error) {
+    console.error('Search Partner Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server Error: Could not execute partner search',
+    });
+  }
+};
+
+/**
  * @desc    Send a partnership invitation
  * @route   POST /api/partnerships/invite
  * @access  Private
@@ -124,7 +174,6 @@ const respondToInvite = async (req, res) => {
       
       // Optionally link the recipient's goal
       if (partnerGoalId) {
-        // Verify partner's goal belongs to them
         const partnerGoal = await Goal.findOne({ _id: partnerGoalId, owner: req.user._id });
         if (partnerGoal) {
           partnership.partnerGoal = partnerGoalId;
@@ -150,6 +199,7 @@ const respondToInvite = async (req, res) => {
 };
 
 module.exports = {
+  searchPartner,
   invitePartner,
   getPendingInvites,
   respondToInvite,

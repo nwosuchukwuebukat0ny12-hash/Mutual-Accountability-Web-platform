@@ -1,7 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { invitePartner, getPendingInvites, respondToInvite } = require('../controllers/partnershipController');
+const { searchPartner, invitePartner, getPendingInvites, respondToInvite } = require('../controllers/partnershipController');
 const { protect } = require('../middleware/auth');
+
+// @route   GET /api/partnerships/search
+// @desc    Search for an accountability partner by username
+// @access  Private
+router.get('/search', protect, searchPartner);
 
 // @route   POST /api/partnerships/invite
 // @desc    Send a partnership invitation
