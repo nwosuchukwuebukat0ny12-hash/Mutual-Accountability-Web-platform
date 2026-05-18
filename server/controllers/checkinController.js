@@ -130,7 +130,14 @@ const approveCheckIn = async (req, res) => {
     const todayStr = formatInTimeZone(now, userTimezone, 'yyyy-MM-dd');
     let newCurrentStreak = checkinOwner.currentStreak;
 
-    if (checkinOwner.lastActiveAt) {
+    // Check if this is the user's first ever approved check-in
+    const otherApprovedCount = await CheckIn.countDocuments({
+      user: checkIn.user,
+      status: 'approved',
+      _id: { $ne: checkIn._id }
+    });
+
+    if (otherApprovedCount > 0 && checkinOwner.lastActiveAt) {
       const lastActiveStr = formatInTimeZone(checkinOwner.lastActiveAt, userTimezone, 'yyyy-MM-dd');
       
       if (lastActiveStr === todayStr) {
