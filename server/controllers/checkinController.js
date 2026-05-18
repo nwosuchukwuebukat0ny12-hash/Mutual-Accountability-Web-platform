@@ -1,4 +1,4 @@
-const CheckIn = require('../models/Checkin');
+const CheckIn = require('../models/CheckIn');
 const Goal = require('../models/Goal');
 const Partnership = require('../models/Partnership');
 

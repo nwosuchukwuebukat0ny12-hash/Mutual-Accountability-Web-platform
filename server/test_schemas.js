@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const User = require('./models/User');
 const Goal = require('./models/Goal');
 const Partnership = require('./models/Partnership');
-const CheckIn = require('./models/Checkin');
+const CheckIn = require('./models/CheckIn');
 
 const runTest = async () => {
   try {
