@@ -24,6 +24,7 @@ const INITIAL_MOCK_FEED = [
 
 export const usePartnershipStore = create((set) => ({
   feed: INITIAL_MOCK_FEED,
+  partnerships: [],
   partner: {
     name: "Sarah Connor",
     username: "sarah_c",
@@ -32,6 +33,39 @@ export const usePartnershipStore = create((set) => ({
     mutualGoal: "Hypertrophy Conditioning"
   },
   isLoading: false,
+
+  // Fetch all partnerships for the logged-in user
+  fetchPartnerships: async () => {
+    try {
+      const res = await axiosInstance.get("/partnerships/pending");
+      const list = res.data.data || res.data;
+      set({ partnerships: Array.isArray(list) ? list : [] });
+      return { success: true };
+    } catch (error) {
+      console.error("Error in fetchPartnerships:", error);
+      return { success: false, message: error.response?.data?.message || "An error occurred" };
+    }
+  },
+
+  // Respond to a partnership invite (accept or reject)
+  respondToInvite: async (inviteId, action) => {
+    try {
+      const res = await axiosInstance.post("/partnerships/respond", {
+        partnershipId: inviteId,
+        action // 'accept' or 'reject'
+      });
+      const updated = res.data.data || res.data;
+      set((state) => ({
+        partnerships: state.partnerships.map((p) =>
+          p._id === inviteId ? updated : p
+        )
+      }));
+      return { success: true };
+    } catch (error) {
+      console.error("Error in respondToInvite:", error);
+      return { success: false, message: error.response?.data?.message || "Failed to respond to invite" };
+    }
+  },
 
   // Search Accountability Peer matching Fawaz's partner controller
   searchUser: async (username) => {
