@@ -7,13 +7,13 @@ const Goal = require('../models/Goal');
  */
 const createGoal = async (req, res) => {
   try {
-    const { title, category, description, deadline, frequency } = req.body;
+    const { title, category, description, deadline, frequency, timezone, milestones } = req.body;
 
     // 1. Calculate nextCheckinDue based on frequency and user's timezone
     const { formatInTimeZone, toDate } = require('date-fns-tz');
     const { addDays, endOfDay } = require('date-fns');
 
-    const userTimezone = req.user.timezone || 'UTC';
+    const userTimezone = timezone || req.user.timezone || 'UTC';
     
     // Get current time in user's timezone
     const now = new Date();
@@ -35,6 +35,7 @@ const createGoal = async (req, res) => {
       deadline: new Date(deadline),
       frequency,
       nextCheckinDue,
+      milestones: milestones ? milestones.map(m => ({ title: m.title, targetDate: new Date(m.targetDate) })) : [],
     });
 
     res.status(201).json({
@@ -50,6 +51,77 @@ const createGoal = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get logged-in user's active goals
+ * @route   GET /api/goals
+ * @access  Private
+ */
+const getGoals = async (req, res) => {
+  try {
+    const goals = await Goal.find({ owner: req.user._id, status: 'active' });
+    res.status(200).json({
+      success: true,
+      data: goals,
+    });
+  } catch (error) {
+    console.error('Get Goals Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server Error: Could not fetch goals',
+    });
+  }
+};
+
+/**
+ * @desc    Toggle a specific milestone's completion status
+ * @route   PUT /api/goals/:id/milestone
+ * @access  Private
+ */
+const toggleMilestone = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { milestoneIndex } = req.body;
+
+    if (typeof milestoneIndex !== 'number') {
+      return res.status(400).json({ success: false, message: 'milestoneIndex is required and must be a number' });
+    }
+
+    const goal = await Goal.findOne({ _id: id, owner: req.user._id });
+
+    if (!goal) {
+      return res.status(404).json({ success: false, message: 'Goal not found' });
+    }
+
+    if (milestoneIndex < 0 || milestoneIndex >= goal.milestones.length) {
+      return res.status(400).json({ success: false, message: 'Invalid milestone index' });
+    }
+
+    // Toggle milestone
+    goal.milestones[milestoneIndex].completed = !goal.milestones[milestoneIndex].completed;
+
+    // Recalculate progress based on milestones, if milestones exist
+    if (goal.milestones.length > 0) {
+      const completedMilestones = goal.milestones.filter((m) => m.completed).length;
+      goal.progress = Math.round((completedMilestones / goal.milestones.length) * 100);
+    }
+
+    await goal.save();
+
+    res.status(200).json({
+      success: true,
+      data: goal,
+    });
+  } catch (error) {
+    console.error('Toggle Milestone Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server Error: Could not update milestone',
+    });
+  }
+};
+
 module.exports = {
   createGoal,
+  getGoals,
+  toggleMilestone,
 };

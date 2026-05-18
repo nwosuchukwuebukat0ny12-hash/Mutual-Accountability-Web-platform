@@ -10,6 +10,11 @@ const { submitCheckInSchema } = require('../utils/validators');
 // @access  Private
 router.post('/submit', protect, validate(submitCheckInSchema), submitCheckIn);
 
+// @route   POST /api/checkins (Fallback / backward compatibility route)
+// @desc    Submit a check-in (supports both routes)
+// @access  Private
+router.post('/', protect, validate(submitCheckInSchema), submitCheckIn);
+
 // @route   POST /api/checkins/approve/:id
 // @desc    Verify and approve a partner's check-in
 // @access  Private
