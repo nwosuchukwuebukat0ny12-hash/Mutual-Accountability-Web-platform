@@ -6,7 +6,17 @@ import { usePartnershipStore } from "../store/usePartnershipStore";
 const DashboardPage = () => {
   const { authUser, logout } = useAuthStore();
   const { goals, createGoal, toggleMilestone, fetchGoals, isLoading: isGoalsLoading } = useGoalStore();
-  const { feed, approveCheckin, partner, searchUser, sendInvite } = usePartnershipStore();
+  
+  const { 
+    feed, 
+    approveCheckin, 
+    partner, 
+    searchUser, 
+    sendInvite,
+    partnerships,
+    fetchPartnerships,
+    respondToInvite
+  } = usePartnershipStore();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isNewGoalModalOpen, setIsNewGoalModalOpen] = useState(false);
@@ -34,7 +44,8 @@ const DashboardPage = () => {
 
   useEffect(() => {
     fetchGoals();
-  }, [fetchGoals]);
+    fetchPartnerships();
+  }, [fetchGoals, fetchPartnerships]);
 
   const showToast = (message, type = "success") => {
     setToastMessage(message);
@@ -44,16 +55,24 @@ const DashboardPage = () => {
     }, 4000);
   };
 
-  // Handle Milestone toggling
+  // Handle Milestone toggling with index mapped to backend
   const handleToggleMilestone = async (goalId, milestoneIndex) => {
-    await toggleMilestone(goalId, milestoneIndex);
-    showToast("Milestone status updated!");
+    const res = await toggleMilestone(goalId, milestoneIndex);
+    if (res.success) {
+      showToast("Milestone status updated!");
+    } else {
+      showToast(res.message || "Failed to update milestone", "error");
+    }
   };
 
   // Handle feed check-in approval
-  const handleApproveCheckin = async (feedId) => {
-    await approveCheckin(feedId);
-    showToast("Partner check-in approved! Momentum maintained. 🤝");
+  const handleApproveCheckin = async (feedId, checkInId) => {
+    const res = await approveCheckin(feedId, checkInId);
+    if (res.success) {
+      showToast("Partner check-in approved! Momentum maintained. 🤝");
+    } else {
+      showToast(res.message || "Failed to approve check-in", "error");
+    }
   };
 
   // Milestone builder handlers
@@ -94,13 +113,19 @@ const DashboardPage = () => {
       return;
     }
 
+    // Map milestone strings to targetDate objects for Fawaz's backend schema!
+    const milestonesPayload = filteredMilestones.map(m => ({
+      title: m,
+      targetDate: goalDeadline // Fallback target date is the overall deadline
+    }));
+
     const res = await createGoal({
       title: goalTitle,
       category: goalCategory,
       description: goalDescription,
       deadline: goalDeadline,
       frequency: goalFrequency,
-      milestones: filteredMilestones
+      milestones: milestonesPayload
     });
 
     if (res.success) {
@@ -114,7 +139,7 @@ const DashboardPage = () => {
       setGoalFrequency("daily");
       setGoalMilestones([""]);
     } else {
-      setGoalError("Failed to create goal. Try again.");
+      setGoalError(res.message || "Failed to create goal. Try again.");
     }
   };
 
@@ -142,24 +167,37 @@ const DashboardPage = () => {
   };
 
   // Invite Partner Handler
-  const handleInvitePartnerSubmit = async (recipientId) => {
-    const res = await sendInvite(recipientId);
+  const handleInvitePartnerSubmit = async (username) => {
+    // Check if there is an active goal to connect with this partnership
+    if (goals.length === 0) {
+      showToast("Create at least one goal first before inviting a partner!", "error");
+      return;
+    }
+
+    const firstActiveGoalId = goals[0]._id;
+    const res = await sendInvite(username, firstActiveGoalId);
     if (res.success) {
       setInviteSent(true);
       showToast("Accountability invite successfully sent! ✉️");
     } else {
-      showToast("Failed to send invite.", "error");
+      showToast(res.message || "Failed to send invite.", "error");
     }
   };
 
   // Calculate pending milestones
-  const pendingMilestonesCount = goals.flatMap(g => g.milestones).filter(m => !m.completed).length;
+  const pendingMilestonesCount = goals.flatMap(g => g.milestones || []).filter(m => !m.completed).length;
 
   // Calculate days left helper
   const getDaysLeft = (deadlineStr) => {
     const days = Math.max(0, Math.ceil((new Date(deadlineStr) - new Date()) / (1000 * 60 * 60 * 24)));
     return days;
   };
+
+  // Filter incoming pending partnership invites
+  const incomingPendingInvites = partnerships ? partnerships.filter(p => {
+    const recipientId = p.recipient?._id || p.recipient;
+    return p.status === "pending" && recipientId === authUser?._id;
+  }) : [];
 
   return (
     <div className="min-h-screen bg-white font-inter text-text flex overflow-hidden">
@@ -192,7 +230,7 @@ const DashboardPage = () => {
             <a href="#goals" className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-medium text-sm transition-colors">
               <span className="text-lg">🎯</span> My Goals
             </a>
-            <button onClick={() => setIsSearchModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-medium text-sm transition-colors">
+            <button onClick={() => setIsSearchModalOpen(true)} className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-medium text-sm transition-colors text-left">
               <span className="text-lg">🤝</span> Partners
             </button>
             <a href="#community" className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-medium text-sm transition-colors">
@@ -244,11 +282,78 @@ const DashboardPage = () => {
             <div className="flex items-center gap-5">
               <button className="text-gray-400 hover:text-gray-600 transition-colors text-xl">🔔</button>
               <button className="text-gray-400 hover:text-gray-600 transition-colors text-xl">⚙️</button>
-              <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm flex items-center justify-center font-bold text-gray-600 overflow-hidden">
+              <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm flex items-center justify-center font-bold text-gray-600 overflow-hidden animate-pulse">
                 <img src={`https://ui-avatars.com/api/?name=${authUser?.name || 'User'}&background=e2e8f0&color=475569`} alt="Avatar" className="w-full h-full object-cover" />
               </div>
             </div>
           </header>
+
+          {/* Incoming Pending Partnerships Inbox Container */}
+          {incomingPendingInvites.length > 0 && (
+            <div className="p-6 bg-amber-50/50 border border-amber-200 rounded-2xl mb-8 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-amber-800 mb-4 flex items-center gap-2">
+                <span>📥</span> Incoming Partnership Invites ({incomingPendingInvites.length})
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {incomingPendingInvites.map((invite) => {
+                  const sender = invite.requester || { name: "User", username: "user" };
+                  const goal = invite.goal || { title: "Custom Goal" };
+                  return (
+                    <div
+                      key={invite._id}
+                      className="p-5 bg-white border border-amber-200/60 rounded-xl flex flex-col justify-between shadow-sm"
+                    >
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm">
+                            {sender.name.charAt(0)}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-gray-900 leading-tight">
+                              Invite from {sender.name}
+                            </h4>
+                            <p className="text-xs text-gray-500 font-medium">@{sender.username}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-3 p-3 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-700 font-medium">
+                          <span className="font-bold text-[9px] text-[#00685f] uppercase block mb-1">Target Goal Pact:</span>
+                          "{goal.title}"
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
+                        <button
+                          onClick={async () => {
+                            const res = await respondToInvite(invite._id, "accept");
+                            if (res.success) {
+                              showToast("Partnership accepted! Sync sequence active. 🤝");
+                              fetchPartnerships();
+                            }
+                          }}
+                          className="flex-grow bg-[#00685f] hover:bg-[#004d46] text-white py-2 font-bold text-xs rounded-lg transition-colors shadow-sm"
+                        >
+                          Accept Pact
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const res = await respondToInvite(invite._id, "reject");
+                            if (res.success) {
+                              showToast("Invitation declined.", "error");
+                              fetchPartnerships();
+                            }
+                          }}
+                          className="px-4 border border-gray-300 hover:bg-gray-50 text-gray-600 font-medium py-2 text-xs rounded-lg transition-colors"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Quick Metrics Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-10">
@@ -320,7 +425,25 @@ const DashboardPage = () => {
                           </div>
                         </div>
                         
-                        <h4 className="text-lg font-bold text-gray-900 mb-6 tracking-tight leading-snug line-clamp-2">{goal.title}</h4>
+                        <h4 className="text-lg font-bold text-gray-900 mb-4 tracking-tight leading-snug line-clamp-2">{goal.title}</h4>
+                        
+                        {/* Interactive Milestone Checkboxes Inside Goal Card */}
+                        {goal.milestones && goal.milestones.length > 0 && (
+                          <div className="space-y-2 mb-6">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Interactive Milestones</span>
+                            {goal.milestones.map((m, idx) => (
+                              <label key={idx} className="flex items-center gap-2.5 text-xs text-gray-600 hover:text-gray-900 cursor-pointer font-medium">
+                                <input 
+                                  type="checkbox" 
+                                  checked={m.completed} 
+                                  onChange={() => handleToggleMilestone(goal._id, idx)}
+                                  className="rounded text-[#00685f] focus:ring-[#00685f] border-gray-300 w-4 h-4 cursor-pointer"
+                                />
+                                <span className={m.completed ? "line-through text-gray-400" : ""}>{m.title}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
                         
                         <div className="mb-6 mt-auto">
                           <div className="flex justify-between items-center mb-2">
@@ -420,7 +543,7 @@ const DashboardPage = () => {
                         {/* Approval Trigger */}
                         {!item.isBadge && !item.approved && (
                            <button
-                             onClick={() => handleApproveCheckin(item.id)}
+                             onClick={() => handleApproveCheckin(item.id, item.checkInId)}
                              className="text-xs font-bold text-[#00685f] hover:underline"
                            >
                              Verify Check-in
@@ -674,7 +797,7 @@ const DashboardPage = () => {
                   ) : (
                     <button 
                       type="button"
-                      onClick={() => handleInvitePartnerSubmit(searchResult._id)}
+                      onClick={() => handleInvitePartnerSubmit(searchResult.username)}
                       className="w-full bg-[#00685f] hover:bg-[#004d46] text-white py-3.5 font-bold text-sm uppercase tracking-widest rounded-xl transition-all shadow-md mt-2"
                     >
                       Send Accountability Invite

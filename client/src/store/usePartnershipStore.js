@@ -1,8 +1,10 @@
 import { create } from "zustand";
+import axiosInstance from "../lib/axios";
 
 const INITIAL_MOCK_FEED = [
   {
     id: "f1",
+    checkInId: "66e608a2-mock-1",
     partnerName: "Sarah Connor",
     action: "completed a check-in",
     goalTitle: "Conditioning Loop",
@@ -20,9 +22,8 @@ const INITIAL_MOCK_FEED = [
   }
 ];
 
-export const usePartnershipStore = create((set, get) => ({
+export const usePartnershipStore = create((set) => ({
   feed: INITIAL_MOCK_FEED,
-  isLoading: false,
   partner: {
     name: "Sarah Connor",
     username: "sarah_c",
@@ -30,85 +31,53 @@ export const usePartnershipStore = create((set, get) => ({
     streak: 12,
     mutualGoal: "Hypertrophy Conditioning"
   },
+  isLoading: false,
 
-  approveCheckin: async (feedId) => {
-    set((state) => ({
-      feed: state.feed.map((item) =>
-        item.id === feedId ? { ...item, approved: true } : item
-      )
-    }));
-    return { success: true };
-  },
-
+  // Search Accountability Peer matching Fawaz's partner controller
   searchUser: async (username) => {
     set({ isLoading: true });
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    set({ isLoading: false });
-
-    const normalized = username.toLowerCase().trim();
-    
-    // Mock user matching logic
-    if (normalized === "sarah" || normalized === "sarah_c") {
-      return {
-        success: true,
-        user: {
-          _id: "u_sarah",
-          name: "Sarah Connor",
-          username: "sarah_c",
-          bio: "Building strength, stamina, and preparing for the future.",
-          avatar: "",
-          mutualCompatibility: 94,
-          focusCategories: ["fitness", "habit"]
-        }
-      };
-    } else if (normalized === "fawaz" || normalized === "fawaz007") {
-      return {
-        success: true,
-        user: {
-          _id: "u_fawaz",
-          name: "Fawaz Lead",
-          username: "fawaz007",
-          bio: "Full stack builder, database lover, running daily checks.",
-          avatar: "",
-          mutualCompatibility: 88,
-          focusCategories: ["study", "career"]
-        }
-      };
-    } else if (normalized === "nabila" || normalized === "nab_dev") {
-      return {
-        success: true,
-        user: {
-          _id: "u_nabila",
-          name: "Nabila Schema",
-          username: "nab_dev",
-          bio: "Data integrity and Zod models. Keeping it structured.",
-          avatar: "",
-          mutualCompatibility: 91,
-          focusCategories: ["study", "other"]
-        }
-      };
-    } else if (normalized === "mufeeda" || normalized === "muf_setup") {
-      return {
-        success: true,
-        user: {
-          _id: "u_mufeeda",
-          name: "Mufeeda Setup",
-          username: "muf_setup",
-          bio: "Zustand coordinator and Axios router. Linking the wires.",
-          avatar: "",
-          mutualCompatibility: 89,
-          focusCategories: ["study", "career"]
-        }
-      };
+    try {
+      const res = await axiosInstance.get(`/partnerships/search?username=${username}`);
+      const partnerData = res.data.data || res.data;
+      return { success: true, user: partnerData };
+    } catch (error) {
+      console.error("Error in searchUser:", error);
+      return { success: false, message: error.response?.data?.message || "User not found. Try searching 'sarah', 'fawaz', 'nabila', or 'mufeeda'." };
+    } finally {
+      set({ isLoading: false });
     }
-
-    return { success: false, message: "User not found. Try searching 'sarah', 'fawaz', 'nabila', or 'mufeeda'." };
   },
 
-  sendInvite: async (recipientId) => {
+  // Send invitation matching Fawaz's { username, goalId } payload
+  sendInvite: async (username, goalId) => {
     set({ isLoading: true });
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    set({ isLoading: false });
-    return { success: true, message: "Accountability invitation sent successfully!" };
+    try {
+      const res = await axiosInstance.post("/partnerships/invite", { username, goalId });
+      return { success: true, data: res.data.data };
+    } catch (error) {
+      console.error("Error in sendInvite:", error);
+      return { success: false, message: error.response?.data?.message || "An error occurred while sending the invitation" };
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  // Verify and approve partner's check-in
+  approveCheckin: async (feedId, checkInId) => {
+    try {
+      if (checkInId && !checkInId.includes("mock")) {
+        await axiosInstance.post(`/checkins/approve/${checkInId}`);
+      }
+      
+      set((state) => ({
+        feed: state.feed.map((item) =>
+          item.id === feedId ? { ...item, approved: true } : item
+        )
+      }));
+      return { success: true };
+    } catch (error) {
+      console.error("Error in approveCheckin:", error);
+      return { success: false, message: error.response?.data?.message || "Failed to approve check-in" };
+    }
   }
 }));
