@@ -203,7 +203,60 @@ const approveCheckIn = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get check-in feed for active partnership (pending partner approval)
+ * @route   GET /api/checkins/feed
+ * @access  Private
+ */
+const getCheckInFeed = async (req, res) => {
+  try {
+    // Find active partnership first
+    const active = await Partnership.findOne({
+      $or: [{ requester: req.user._id }, { recipient: req.user._id }],
+      status: 'active'
+    })
+    .populate('requester', 'name username')
+    .populate('recipient', 'name username');
+
+    if (!active) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    // Determine the partner ID and Name
+    const isRequester = active.requester._id.toString() === req.user._id.toString();
+    const partnerId = isRequester ? active.recipient._id : active.requester._id;
+    const partnerName = isRequester ? active.recipient.name : active.requester.name;
+
+    // Find recent checkins by the partner that need approval, or were recently approved
+    const checkIns = await CheckIn.find({
+      user: partnerId,
+      // Either pending, or approved in the last 48 hours for history
+    })
+    .sort({ createdAt: -1 })
+    .limit(10)
+    .populate('goal', 'title category');
+
+    const feedItems = checkIns.map(c => ({
+      id: c._id.toString(),
+      checkInId: c._id.toString(),
+      partnerName: partnerName,
+      action: "completed a check-in",
+      goalTitle: c.goal?.title || "Goal",
+      timestamp: new Date(c.createdAt).toLocaleDateString(),
+      note: c.note,
+      approved: c.status === 'approved',
+      isBadge: false
+    }));
+
+    res.status(200).json({ success: true, data: feedItems });
+  } catch (error) {
+    console.error('Get Checkin Feed Error:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving feed' });
+  }
+};
+
 module.exports = {
   submitCheckIn,
   approveCheckIn,
+  getCheckInFeed,
 };

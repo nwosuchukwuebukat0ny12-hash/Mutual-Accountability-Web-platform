@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { searchPartner, invitePartner, getPendingInvites, respondToInvite } = require('../controllers/partnershipController');
+const { searchPartner, invitePartner, getPendingInvites, respondToInvite, getActivePartnership } = require('../controllers/partnershipController');
 const { protect } = require('../middleware/auth');
 
 // @route   GET /api/partnerships/search
@@ -17,6 +17,11 @@ router.post('/invite', protect, invitePartner);
 // @desc    Get pending received invitations
 // @access  Private
 router.get('/pending', protect, getPendingInvites);
+
+// @route   GET /api/partnerships/active
+// @desc    Get current active partnership
+// @access  Private
+router.get('/active', protect, getActivePartnership);
 
 // @route   POST /api/partnerships/respond
 // @desc    Respond to a partnership invitation

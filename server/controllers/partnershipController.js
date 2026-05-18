@@ -198,9 +198,59 @@ const respondToInvite = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get current user's active partnership and partner profile
+ * @route   GET /api/partnerships/active
+ * @access  Private
+ */
+const getActivePartnership = async (req, res) => {
+  try {
+    const active = await Partnership.findOne({
+      $or: [{ requester: req.user._id }, { recipient: req.user._id }],
+      status: 'active'
+    })
+    .populate('requester', 'name username avatar currentStreak categories bio')
+    .populate('recipient', 'name username avatar currentStreak categories bio')
+    .populate('goal', 'title category deadline progress')
+    .populate('partnerGoal', 'title category deadline progress');
+
+    if (!active) {
+      return res.status(200).json({ success: true, data: null });
+    }
+
+    // Determine who is the partner
+    const isRequester = active.requester._id.toString() === req.user._id.toString();
+    const partner = isRequester ? active.recipient : active.requester;
+    const myGoal = isRequester ? active.goal : active.partnerGoal;
+    const partnerGoal = isRequester ? active.partnerGoal : active.goal;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        partnershipId: active._id,
+        partner: {
+          _id: partner._id,
+          name: partner.name,
+          username: partner.username,
+          avatar: partner.avatar,
+          streak: partner.currentStreak,
+          bio: partner.bio,
+          categories: partner.categories
+        },
+        myGoal,
+        partnerGoal
+      }
+    });
+  } catch (error) {
+    console.error('Get Active Partnership Error:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving active partner' });
+  }
+};
+
 module.exports = {
   searchPartner,
   invitePartner,
   getPendingInvites,
   respondToInvite,
+  getActivePartnership,
 };

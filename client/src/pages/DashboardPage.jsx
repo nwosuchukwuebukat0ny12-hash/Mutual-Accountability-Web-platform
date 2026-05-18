@@ -5,7 +5,7 @@ import { usePartnershipStore } from "../store/usePartnershipStore";
 
 const DashboardPage = () => {
   const { authUser, logout } = useAuthStore();
-  const { goals, createGoal, toggleMilestone, fetchGoals, isLoading: isGoalsLoading } = useGoalStore();
+  const { goals, createGoal, toggleMilestone, fetchGoals, submitCheckIn, isLoading: isGoalsLoading } = useGoalStore();
   
   const { 
     feed, 
@@ -15,7 +15,9 @@ const DashboardPage = () => {
     sendInvite,
     partnerships,
     fetchPartnerships,
-    respondToInvite
+    respondToInvite,
+    fetchActivePartnership,
+    fetchFeed
   } = usePartnershipStore();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -42,10 +44,21 @@ const DashboardPage = () => {
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("success");
 
+  // Check-In Modal State
+  const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
+  const [checkInGoalId, setCheckInGoalId] = useState("");
+  const [checkInNote, setCheckInNote] = useState("");
+  const [checkInStake, setCheckInStake] = useState("");
+  const [checkInProgress, setCheckInProgress] = useState(10);
+  const [checkInError, setCheckInError] = useState("");
+  const [isSubmittingCheckIn, setIsSubmittingCheckIn] = useState(false);
+
   useEffect(() => {
     fetchGoals();
     fetchPartnerships();
-  }, [fetchGoals, fetchPartnerships]);
+    fetchActivePartnership();
+    fetchFeed();
+  }, [fetchGoals, fetchPartnerships, fetchActivePartnership, fetchFeed]);
 
   const showToast = (message, type = "success") => {
     setToastMessage(message);
@@ -184,8 +197,48 @@ const DashboardPage = () => {
     }
   };
 
+  // Submit Check-In Handler
+  const handleCreateCheckInSubmit = async (e) => {
+    e.preventDefault();
+    setCheckInError("");
+
+    if (!checkInGoalId) {
+      setCheckInError("Please select a goal to check-in for.");
+      return;
+    }
+
+    if (!checkInNote.trim()) {
+      setCheckInError("Please provide proof (note) of your progress.");
+      return;
+    }
+
+    setIsSubmittingCheckIn(true);
+    const res = await submitCheckIn(checkInGoalId, checkInNote, checkInStake, checkInProgress);
+    setIsSubmittingCheckIn(false);
+
+    if (res.success) {
+      showToast("Check-in submitted! Waiting for partner verification. 🤝");
+      setIsCheckInModalOpen(false);
+      // Reset form
+      setCheckInNote("");
+      setCheckInStake("");
+      setCheckInProgress(10);
+    } else {
+      setCheckInError(res.message || "Failed to submit check-in. Try again.");
+    }
+  };
+
   // Calculate pending milestones
   const pendingMilestonesCount = goals.flatMap(g => g.milestones || []).filter(m => !m.completed).length;
+
+  // Calculate if there are active goals unchecked today
+  const hasUncheckedActiveGoal = goals.length > 0 && goals.some(g => {
+    if (g.status !== 'active') return false;
+    if (!g.lastCheckinAt) return true;
+    const todayStr = new Date().toDateString();
+    const lastCheckinStr = new Date(g.lastCheckinAt).toDateString();
+    return lastCheckinStr !== todayStr;
+  });
 
   // Calculate days left helper
   const getDaysLeft = (deadlineStr) => {
@@ -367,7 +420,7 @@ const DashboardPage = () => {
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
               <h3 className="text-sm font-semibold text-gray-600 mb-3">Daily Streak</h3>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-bold text-[#c26d2e] leading-none">{authUser?.currentStreak || 8}</span>
+                <span className="text-4xl font-bold text-[#c26d2e] leading-none">{authUser?.currentStreak || 0}</span>
                 <span className="text-sm font-medium text-gray-500">days</span>
               </div>
             </div>
@@ -378,7 +431,19 @@ const DashboardPage = () => {
                 <span className="text-sm font-medium text-gray-500">active</span>
               </div>
             </div>
-            <button className="bg-[#00685f] hover:bg-[#004d46] rounded-2xl p-6 shadow-md flex flex-col justify-center text-left group transition-colors relative overflow-hidden">
+            <button 
+              onClick={() => {
+                if (goals.filter(g => g.status === 'active').length === 0) {
+                  showToast("Please create at least one active goal first before checking in!", "error");
+                } else {
+                  // Set default to first active goal
+                  const firstActiveGoal = goals.find(g => g.status === 'active');
+                  setCheckInGoalId(firstActiveGoal._id);
+                  setIsCheckInModalOpen(true);
+                }
+              }}
+              className="bg-[#00685f] hover:bg-[#004d46] rounded-2xl p-6 shadow-md flex flex-col justify-center text-left group transition-colors relative overflow-hidden"
+            >
               <div className="absolute top-0 right-0 w-24 h-24 bg-white opacity-5 rounded-full -mr-8 -mt-8 transform scale-150"></div>
               <h3 className="text-sm font-semibold text-teal-100 mb-2 relative z-10">Quick Check-in</h3>
               <div className="flex items-center justify-between relative z-10 mt-auto">
@@ -421,7 +486,7 @@ const DashboardPage = () => {
                             {goal.category === 'fitness' ? '🏋️' : goal.category === 'study' ? '📖' : '🎯'}
                           </div>
                           <div className="flex items-center gap-1.5 text-[#c26d2e] text-xs font-bold bg-orange-50 px-2.5 py-1 rounded-full">
-                            <span>🔥</span> {authUser?.currentStreak || 12} Streak
+                            <span>🔥</span> {authUser?.currentStreak || 0} Streak
                           </div>
                         </div>
                         
@@ -503,68 +568,93 @@ const DashboardPage = () => {
                 
                 {/* Loop Feed Items */}
                 <div className="space-y-6 relative">
-                  {feed.map((item, idx) => (
-                    <div key={item.id} className="flex gap-4 relative">
-                      {/* Vertical line connector */}
-                      {idx !== feed.length - 1 && <div className="absolute top-10 left-5 w-px h-[calc(100%-10px)] bg-gray-200 z-0"></div>}
-                      
-                      <div className="w-10 h-10 shrink-0 rounded-full bg-white border border-gray-200 shadow-sm overflow-hidden relative z-10">
-                        <img src={`https://ui-avatars.com/api/?name=${item.partnerName}&background=fff`} alt={item.partnerName} className="w-full h-full object-cover" />
-                        {idx === 0 && <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#00685f] rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white">✓</div>}
-                        {idx === 1 && <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-orange-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white">⚡</div>}
-                      </div>
-
-                      <div className="flex-1 pb-2">
-                        <p className="text-sm text-gray-800 font-medium leading-snug">
-                          <span className="font-bold text-gray-900">{item.partnerName}</span> {item.action} {item.isBadge ? `"${item.badgeName}"` : ""}
-                        </p>
-                        <span className="text-[11px] font-medium text-gray-400 block mb-2">{item.timestamp}</span>
-                        
-                        {!item.isBadge && item.note && (
-                          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-sm italic text-gray-600 mb-3 relative">
-                            "{item.note}"
-                            {/* Little triangle pointer */}
-                            <div className="absolute -left-1.5 top-3 w-3 h-3 bg-white border-l border-b border-gray-200 transform rotate-45"></div>
-                          </div>
-                        )}
-
-                        {/* Social Buttons */}
-                        {item.isBadge && (
-                          <div className="flex gap-2 mt-3">
-                            <button className="px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-full hover:bg-blue-100 flex items-center gap-1.5 transition-colors">
-                              👍 High Five
-                            </button>
-                            <button className="px-3 py-1.5 bg-gray-200 text-gray-600 text-xs font-bold rounded-full hover:bg-gray-300 transition-colors">
-                              Reply
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Approval Trigger */}
-                        {!item.isBadge && !item.approved && (
-                           <button
-                             onClick={() => handleApproveCheckin(item.id, item.checkInId)}
-                             className="text-xs font-bold text-[#00685f] hover:underline"
-                           >
-                             Verify Check-in
-                           </button>
-                        )}
-                      </div>
+                  {feed.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-sm font-bold text-gray-400">Activity feed is quiet.</p>
+                      <p className="text-xs text-gray-400 mt-1">Pending check-ins will appear here.</p>
                     </div>
-                  ))}
+                  ) : (
+                    feed.map((item, idx) => (
+                      <div key={item.id} className="flex gap-4 relative">
+                        {/* Vertical line connector */}
+                        {idx !== feed.length - 1 && <div className="absolute top-10 left-5 w-px h-[calc(100%-10px)] bg-gray-200 z-0"></div>}
+                        
+                        <div className="w-10 h-10 shrink-0 rounded-full bg-white border border-gray-200 shadow-sm overflow-hidden relative z-10">
+                          <img src={`https://ui-avatars.com/api/?name=${item.partnerName}&background=fff`} alt={item.partnerName} className="w-full h-full object-cover" />
+                          {idx === 0 && <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#00685f] rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white">✓</div>}
+                          {idx === 1 && <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-orange-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white">⚡</div>}
+                        </div>
+  
+                        <div className="flex-1 pb-2">
+                          <p className="text-sm text-gray-800 font-medium leading-snug">
+                            <span className="font-bold text-gray-900">{item.partnerName}</span> {item.action} {item.isBadge ? `"${item.badgeName}"` : ""}
+                          </p>
+                          <span className="text-[11px] font-medium text-gray-400 block mb-2">{item.timestamp}</span>
+                          
+                          {!item.isBadge && item.note && (
+                            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-sm italic text-gray-600 mb-3 relative">
+                              "{item.note}"
+                              {/* Little triangle pointer */}
+                              <div className="absolute -left-1.5 top-3 w-3 h-3 bg-white border-l border-b border-gray-200 transform rotate-45"></div>
+                            </div>
+                          )}
+  
+                          {/* Social Buttons */}
+                          {item.isBadge && (
+                            <div className="flex gap-2 mt-3">
+                              <button className="px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-full hover:bg-blue-100 flex items-center gap-1.5 transition-colors">
+                                👍 High Five
+                              </button>
+                              <button className="px-3 py-1.5 bg-gray-200 text-gray-600 text-xs font-bold rounded-full hover:bg-gray-300 transition-colors">
+                                Reply
+                              </button>
+                            </div>
+                          )}
+  
+                          {/* Approval Trigger */}
+                          {!item.isBadge && !item.approved && (
+                             <button
+                               onClick={async () => {
+                                 const res = await approveCheckin(item.id, item.checkInId);
+                                 if (res.success) {
+                                   showToast("Check-in verified! Partner streak updated.");
+                                 } else {
+                                   showToast(res.message || "Failed to verify check-in", "error");
+                                 }
+                               }}
+                               className="text-xs font-bold text-[#00685f] hover:underline"
+                             >
+                               Verify Check-in
+                             </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 {/* Alert Banner for Streak at Risk */}
-                <div className="mt-8 bg-orange-500 rounded-xl p-5 shadow-md relative overflow-hidden">
-                  <div className="absolute top-0 right-0 transform translate-x-4 -translate-y-4 text-7xl opacity-10">⚠️</div>
-                  <h4 className="text-xs font-bold text-orange-100 uppercase tracking-widest mb-2 relative z-10">Streak at Risk!</h4>
-                  <p className="text-sm text-white font-medium leading-relaxed mb-4 relative z-10">
-                    You haven't checked in for your active goals yet today.
-                  </p>
-                  <button className="w-full bg-white hover:bg-orange-50 text-orange-600 font-bold text-sm py-2.5 rounded-lg transition-colors shadow-sm relative z-10">
-                    Complete Now
-                  </button>
-                </div>
+                {hasUncheckedActiveGoal && (
+                  <div className="mt-8 bg-orange-500 rounded-xl p-5 shadow-md relative overflow-hidden">
+                    <div className="absolute top-0 right-0 transform translate-x-4 -translate-y-4 text-7xl opacity-10">⚠️</div>
+                    <h4 className="text-xs font-bold text-orange-100 uppercase tracking-widest mb-2 relative z-10">Streak at Risk!</h4>
+                    <p className="text-sm text-white font-medium leading-relaxed mb-4 relative z-10">
+                      You haven't checked in for your active goals yet today.
+                    </p>
+                    <button 
+                      onClick={() => {
+                        const firstActiveGoal = goals.find(g => g.status === 'active');
+                        if (firstActiveGoal) {
+                          setCheckInGoalId(firstActiveGoal._id);
+                          setIsCheckInModalOpen(true);
+                        }
+                      }}
+                      className="w-full bg-white hover:bg-orange-50 text-orange-600 font-bold text-sm py-2.5 rounded-lg transition-colors shadow-sm relative z-10"
+                    >
+                      Complete Now
+                    </button>
+                  </div>
+                )}
 
               </div>
             </div>
@@ -805,6 +895,96 @@ const DashboardPage = () => {
                   )}
                 </div>
               )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CHECK-IN SUBMISSION MODAL */}
+      {isCheckInModalOpen && (
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl relative">
+            <button 
+              onClick={() => {
+                setIsCheckInModalOpen(false);
+                setCheckInNote("");
+                setCheckInStake("");
+                setCheckInProgress(10);
+                setCheckInError("");
+              }}
+              className="absolute right-6 top-6 text-2xl text-gray-400 hover:text-gray-600 hover:rotate-90 transition-all"
+            >✕</button>
+            
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#00685f] mb-2 block">Performance Verification</span>
+            <h3 className="text-2xl font-bold text-gray-900 tracking-tight mb-6">Submit Check-In Proof</h3>
+            
+            <form onSubmit={handleCreateCheckInSubmit} className="space-y-4">
+              {checkInError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg font-bold">
+                  ⚠️ {checkInError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Select Active Goal</label>
+                <select 
+                  value={checkInGoalId}
+                  onChange={(e) => setCheckInGoalId(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#00685f]/20 focus:border-[#00685f] text-sm"
+                >
+                  {goals.filter(g => g.status === 'active').map(goal => (
+                    <option key={goal._id} value={goal._id}>
+                      {goal.title} ({goal.category})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Check-in Note / Proof</label>
+                <textarea 
+                  value={checkInNote}
+                  onChange={(e) => setCheckInNote(e.target.value)}
+                  placeholder="What did you complete today? Be specific..." 
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00685f]/20 focus:border-[#00685f] text-sm h-24 resize-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Financial/Social Stake (Optional)</label>
+                <input 
+                  type="text" 
+                  value={checkInStake}
+                  onChange={(e) => setCheckInStake(e.target.value)}
+                  placeholder="e.g. $10 to charity if unverified" 
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00685f]/20 focus:border-[#00685f] text-sm"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500">Self-Assessed Progress Update</label>
+                  <span className="text-xs font-bold text-gray-700">+{checkInProgress}%</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="5" 
+                  max="100" 
+                  step="5"
+                  value={checkInProgress}
+                  onChange={(e) => setCheckInProgress(Number(e.target.value))}
+                  className="w-full accent-[#00685f]"
+                />
+              </div>
+
+              <button 
+                type="submit"
+                disabled={isSubmittingCheckIn}
+                className="w-full bg-[#00685f] hover:bg-[#004d46] text-white py-3.5 font-bold text-sm uppercase tracking-widest rounded-xl transition-all shadow-md mt-4 disabled:opacity-50"
+              >
+                {isSubmittingCheckIn ? "Logging Progress..." : "Commit Check-in Proof"}
+              </button>
             </form>
           </div>
         </div>

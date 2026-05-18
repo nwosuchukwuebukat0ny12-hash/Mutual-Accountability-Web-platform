@@ -1,38 +1,45 @@
 import { create } from "zustand";
 import axiosInstance from "../lib/axios";
 
-const INITIAL_MOCK_FEED = [
-  {
-    id: "f1",
-    checkInId: "66e608a2-mock-1",
-    partnerName: "Sarah Connor",
-    action: "completed a check-in",
-    goalTitle: "Conditioning Loop",
-    timestamp: "10m ago",
-    note: "Did 10 miles in the rain. Stake verified.",
-    approved: false
-  },
-  {
-    id: "f2",
-    partnerName: "Sarah Connor",
-    action: "unlocked a new badge",
-    badgeName: "14-Day Vanguard",
-    timestamp: "2h ago",
-    isBadge: true
-  }
-];
-
 export const usePartnershipStore = create((set) => ({
-  feed: INITIAL_MOCK_FEED,
+  feed: [],
   partnerships: [],
-  partner: {
-    name: "Sarah Connor",
-    username: "sarah_c",
-    avatar: "",
-    streak: 12,
-    mutualGoal: "Hypertrophy Conditioning"
-  },
+  partner: null,
+  activePartnershipData: null,
   isLoading: false,
+
+  // Fetch the currently active partnership and partner details
+  fetchActivePartnership: async () => {
+    try {
+      const res = await axiosInstance.get("/partnerships/active");
+      const data = res.data.data;
+      if (data) {
+        set({ 
+          activePartnershipData: data,
+          partner: data.partner 
+        });
+      } else {
+        set({ activePartnershipData: null, partner: null });
+      }
+      return { success: true };
+    } catch (error) {
+      console.error("Error fetching active partnership:", error);
+      return { success: false };
+    }
+  },
+
+  // Fetch the check-in feed for the active partnership
+  fetchFeed: async () => {
+    try {
+      const res = await axiosInstance.get("/checkins/feed");
+      const feedItems = res.data.data || [];
+      set({ feed: feedItems });
+      return { success: true };
+    } catch (error) {
+      console.error("Error fetching feed:", error);
+      return { success: false };
+    }
+  },
 
   // Fetch all partnerships for the logged-in user
   fetchPartnerships: async () => {

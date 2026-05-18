@@ -51,4 +51,15 @@ export const useGoalStore = create((set) => ({
       return { success: false, message: error.response?.data?.message || "An error occurred while toggling the milestone" };
     }
   },
+
+  // Submit check-in for goal
+  submitCheckIn: async (goalId, note, stake, progress) => {
+    try {
+      const res = await axiosInstance.post("/checkins", { goalId, note, stake, progress });
+      return { success: true, data: res.data.data };
+    } catch (error) {
+      console.error("Error in submitCheckIn:", error);
+      return { success: false, message: error.response?.data?.message || "Failed to submit check-in" };
+    }
+  },
 }));
