@@ -161,4 +161,25 @@ export const usePartnershipStore = create((set) => ({
       return { success: false, message: error.response?.data?.message || "Failed to send reaction" };
     }
   },
+
+  dissolvePartnership: async (partnershipId) => {
+    set({ isLoading: true });
+    try {
+      await axiosInstance.delete(`/partnerships/${partnershipId}`);
+      // Refresh active partnerships list
+      const res = await axiosInstance.get("/partnerships/active");
+      const partnersList = res.data.data || res.data;
+      set({ 
+        activePartners: Array.isArray(partnersList) ? partnersList : [],
+        activePartnershipData: partnersList,
+        partner: Array.isArray(partnersList) ? partnersList[0] : partnersList
+      });
+      return { success: true };
+    } catch (error) {
+      console.error("Error dissolving partnership:", error);
+      return { success: false, message: error.response?.data?.message || "Failed to dissolve partnership" };
+    } finally {
+      set({ isLoading: false });
+    }
+  },
 }));

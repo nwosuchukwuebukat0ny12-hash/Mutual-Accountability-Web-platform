@@ -4,7 +4,7 @@ const PartnersPage = () => {
   const context = useOutletContext();
   const {
     authUser, goals, partner, activePartnersList, activePactsList,
-    feed, approveCheckin, respondToInvite, searchUser, sendInvite,
+    feed, approveCheckin, respondToInvite, searchUser, sendInvite, dissolvePartnership,
     isGoalsLoading, pendingMilestonesCount, hasUncheckedActiveGoal, getDaysLeft, incomingPendingInvites,
     sidebarOpen, setSidebarOpen, isNewGoalModalOpen, setIsNewGoalModalOpen,
     goalTitle, setGoalTitle, goalCategory, setGoalCategory, goalDescription, setGoalDescription, goalDeadline, setGoalDeadline, goalFrequency, setGoalFrequency, goalMilestones, setGoalMilestones, goalError, setGoalError,
@@ -189,7 +189,16 @@ const PartnersPage = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => showToast("Dissolve API pending...", "error")}
+                          onClick={async () => {
+                            if (window.confirm(`Are you sure you want to dissolve this partnership pact with ${p.name}? This cannot be undone.`)) {
+                              const res = await dissolvePartnership(pact.id);
+                              if (res.success) {
+                                showToast("Partnership dissolved successfully.");
+                              } else {
+                                showToast(res.message, "error");
+                              }
+                            }
+                          }}
                           className="px-4 py-2.5 text-xs font-bold text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all active:scale-95"
                         >
                           Dissolve Pact

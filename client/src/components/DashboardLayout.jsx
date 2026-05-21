@@ -20,7 +20,8 @@ const DashboardLayout = () => {
     fetchPartnerships,
     respondToInvite,
     fetchActivePartnership,
-    fetchFeed
+    fetchFeed,
+    dissolvePartnership
   } = usePartnershipStore();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -47,6 +48,7 @@ const DashboardLayout = () => {
   const activePactsList = (() => {
     if (!activePartnershipData) {
       return activePartnersList.map(p => ({
+        id: p._id || "mock-id",
         partner: p,
         goalTitle: "Custom Goal",
         progress: Math.floor(Math.random() * 50) + 30
@@ -55,8 +57,9 @@ const DashboardLayout = () => {
     if (Array.isArray(activePartnershipData)) {
       return activePartnershipData.map(p => {
         const partnerInfo = p.partner || (p.recipient?._id === authUser?._id ? p.requester : p.recipient) || { name: "User", username: "user" };
-        const goalInfo = p.goal || p.partnerGoal;
+        const goalInfo = p.myGoal || p.partnerGoal || p.goal;
         return {
+          id: p.partnershipId || p._id,
           partner: partnerInfo,
           goalTitle: goalInfo?.title || "Custom Goal",
           progress: goalInfo?.progress || 0
@@ -64,8 +67,9 @@ const DashboardLayout = () => {
       });
     } else {
       const partnerInfo = activePartnershipData.partner || { name: "User", username: "user" };
-      const goalInfo = activePartnershipData.myGoal || activePartnershipData.partnerGoal;
+      const goalInfo = activePartnershipData.myGoal || activePartnershipData.partnerGoal || activePartnershipData.goal;
       return [{
+        id: activePartnershipData.partnershipId || activePartnershipData._id,
         partner: partnerInfo,
         goalTitle: goalInfo?.title || "Custom Goal",
         progress: goalInfo?.progress || 0
@@ -528,7 +532,7 @@ const DashboardLayout = () => {
             authUser, logout, updateProfileSettings,
             goals, createGoal, toggleMilestone, fetchGoals, submitCheckIn, isGoalsLoading,
             feed, approveCheckin, partner, activePartners, activePartnershipData,
-            searchUser, sendInvite, partnerships, fetchPartnerships, respondToInvite, fetchActivePartnership, fetchFeed,
+            searchUser, sendInvite, partnerships, fetchPartnerships, respondToInvite, fetchActivePartnership, fetchFeed, dissolvePartnership,
             sidebarOpen, setSidebarOpen,
             isNewGoalModalOpen, setIsNewGoalModalOpen,
             activePartnersList, activePactsList,
