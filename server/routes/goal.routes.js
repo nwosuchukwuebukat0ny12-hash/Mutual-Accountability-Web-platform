@@ -15,8 +15,10 @@ router.get('/', protect, getGoals);
 router.post('/', protect, validate(createGoalSchema), createGoal);
 
 // @route   PUT /api/goals/:id/milestone
+// @route   PUT /api/goals/:goalId/milestones/:milestoneIndex/toggle
 // @desc    Toggle a specific milestone's completion status
 // @access  Private
 router.put('/:id/milestone', protect, toggleMilestone);
+router.put('/:goalId/milestones/:milestoneIndex/toggle', protect, toggleMilestone);
 
 module.exports = router;
