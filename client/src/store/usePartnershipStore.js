@@ -5,6 +5,7 @@ export const usePartnershipStore = create((set) => ({
   feed: [],
   partnerships: [],
   partner: null,
+  activePartners: [],
   activePartnershipData: null,
   isLoading: false,
 
@@ -14,12 +15,21 @@ export const usePartnershipStore = create((set) => ({
       const res = await axiosInstance.get("/partnerships/active");
       const data = res.data.data;
       if (data) {
-        set({ 
-          activePartnershipData: data,
-          partner: data.partner 
-        });
+        if (Array.isArray(data)) {
+          set({
+            activePartners: data.map((p) => p.partner || (p.recipient?._id ? p.recipient : p.requester)),
+            activePartnershipData: data,
+            partner: data[0]?.partner || null
+          });
+        } else {
+          set({ 
+            activePartners: data.partner ? [data.partner] : [],
+            activePartnershipData: data,
+            partner: data.partner 
+          });
+        }
       } else {
-        set({ activePartnershipData: null, partner: null });
+        set({ activePartners: [], activePartnershipData: null, partner: null });
       }
       return { success: true };
     } catch (error) {

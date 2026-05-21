@@ -58,4 +58,21 @@ export const useAuthStore = create((set) => ({
       set({ isLoggingOut: false });
     }
   },
+
+  updateProfileSettings: async (data) => {
+    try {
+      // In a real scenario, this would call: await axiosInstance.put("/auth/profile", data);
+      // For now, we optimistically update the local state so the UI reflects changes instantly
+      set((state) => ({
+        authUser: {
+          ...state.authUser,
+          ...data,
+        }
+      }));
+      return { success: true };
+    } catch (error) {
+      console.log("Error in updateProfileSettings:", error);
+      return { success: false, message: "Failed to update profile settings" };
+    }
+  },
 }));
