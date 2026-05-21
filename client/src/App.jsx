@@ -5,7 +5,13 @@ import { useAuthStore } from "./store/useAuthStore";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
+import GoalsPage from "./pages/GoalsPage";
+import PartnersPage from "./pages/PartnersPage";
+import CommunityPage from "./pages/CommunityPage";
+import ProfilePage from "./pages/ProfilePage";
+import SettingsPage from "./pages/SettingsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -35,14 +41,14 @@ function App() {
           path="/register" 
           element={!authUser ? <RegisterPage /> : <Navigate to="/dashboard" />} 
         />
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          } 
-        />
+        <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/goals" element={<GoalsPage />} />
+          <Route path="/partners" element={<PartnersPage />} />
+          <Route path="/community" element={<CommunityPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
         
         {/* Fallback route */}
         <Route path="*" element={<Navigate to="/" />} />

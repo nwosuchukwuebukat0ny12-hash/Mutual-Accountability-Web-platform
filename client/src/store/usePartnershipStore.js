@@ -4,44 +4,47 @@ import axiosInstance from "../lib/axios";
 export const usePartnershipStore = create((set) => ({
   feed: [],
   partnerships: [],
+  activePartners: [],
+  searchResults: [],
   partner: null,
   activePartnershipData: null,
   isLoading: false,
 
-  // Fetch the currently active partnership and partner details
   fetchActivePartnership: async () => {
+    set({ isLoading: true });
     try {
       const res = await axiosInstance.get("/partnerships/active");
-      const data = res.data.data;
-      if (data) {
-        set({ 
-          activePartnershipData: data,
-          partner: data.partner 
-        });
-      } else {
-        set({ activePartnershipData: null, partner: null });
-      }
+      const partnersList = res.data.data || res.data;
+      set({ 
+        activePartners: Array.isArray(partnersList) ? partnersList : [],
+        activePartnershipData: partnersList,
+        partner: Array.isArray(partnersList) ? partnersList[0] : partnersList
+      });
       return { success: true };
     } catch (error) {
-      console.error("Error fetching active partnership:", error);
-      return { success: false };
+      console.error("Error fetching active partnerships:", error);
+      return { success: false, message: error.response?.data?.message || "An error occurred" };
+    } finally {
+      set({ isLoading: false });
     }
   },
 
-  // Fetch the check-in feed for the active partnership
   fetchFeed: async () => {
+    set({ isLoading: true });
     try {
       const res = await axiosInstance.get("/checkins/feed");
-      const feedItems = res.data.data || [];
-      set({ feed: feedItems });
+      const feedItems = res.data.data || res.data || [];
+      const processedFeed = Array.isArray(feedItems) ? feedItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : [];
+      set({ feed: processedFeed });
       return { success: true };
     } catch (error) {
       console.error("Error fetching feed:", error);
-      return { success: false };
+      return { success: false, message: error.response?.data?.message || "An error occurred" };
+    } finally {
+      set({ isLoading: false });
     }
   },
 
-  // Fetch all partnerships for the logged-in user
   fetchPartnerships: async () => {
     try {
       const res = await axiosInstance.get("/partnerships/pending");
@@ -54,12 +57,11 @@ export const usePartnershipStore = create((set) => ({
     }
   },
 
-  // Respond to a partnership invite (accept or reject)
   respondToInvite: async (inviteId, action) => {
     try {
       const res = await axiosInstance.post("/partnerships/respond", {
         partnershipId: inviteId,
-        action // 'accept' or 'reject'
+        action
       });
       const updated = res.data.data || res.data;
       set((state) => ({
@@ -74,7 +76,6 @@ export const usePartnershipStore = create((set) => ({
     }
   },
 
-  // Search Accountability Peer matching Fawaz's partner controller
   searchUser: async (username) => {
     set({ isLoading: true });
     try {
@@ -89,7 +90,6 @@ export const usePartnershipStore = create((set) => ({
     }
   },
 
-  // Send invitation matching Fawaz's { username, goalId } payload
   sendInvite: async (username, goalId) => {
     set({ isLoading: true });
     try {
@@ -103,7 +103,6 @@ export const usePartnershipStore = create((set) => ({
     }
   },
 
-  // Verify and approve partner's check-in
   approveCheckin: async (feedId, checkInId) => {
     try {
       if (checkInId && !checkInId.includes("mock")) {
@@ -120,5 +119,46 @@ export const usePartnershipStore = create((set) => ({
       console.error("Error in approveCheckin:", error);
       return { success: false, message: error.response?.data?.message || "Failed to approve check-in" };
     }
-  }
+  },
+
+  sendReaction: async (checkInId, reactionType) => {
+    set((state) => ({
+      feed: state.feed.map((item) => {
+        if (item._id === checkInId) {
+          const currentCount = item.reactions?.[reactionType] || 0;
+          return {
+            ...item,
+            reactions: {
+              ...item.reactions,
+              [reactionType]: currentCount + 1,
+            },
+          };
+        }
+        return item;
+      }),
+    }));
+
+    try {
+      await axiosInstance.post(`/feed/${checkInId}/reactions`, { type: reactionType });
+      return { success: true };
+    } catch (error) {
+      console.error("Error sending reaction:", error);
+      set((state) => ({
+        feed: state.feed.map((item) => {
+          if (item._id === checkInId) {
+            const currentCount = item.reactions?.[reactionType] || 0;
+            return {
+              ...item,
+              reactions: {
+                ...item.reactions,
+                [reactionType]: Math.max(0, currentCount - 1),
+              },
+            };
+          }
+          return item;
+        }),
+      }));
+      return { success: false, message: error.response?.data?.message || "Failed to send reaction" };
+    }
+  },
 }));
