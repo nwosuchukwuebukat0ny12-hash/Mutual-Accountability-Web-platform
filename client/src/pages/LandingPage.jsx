@@ -87,7 +87,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col items-center text-center">
             <span className="font-heading text-[10px] uppercase tracking-[0.4em] mb-8 hero-text-stagger opacity-50">Volume I: The Foundation</span>
-            <h1 className="text-5xl md:text-[10rem] font-heading font-bold leading-[0.85] tracking-tighter mb-12 hero-text-stagger">
+            <h1 className="text-5xl md:text-[7rem] font-heading font-bold leading-[0.85] tracking-tighter mb-12 hero-text-stagger">
               SUCCESS IS <br />
               <span className="text-primary italic">MUTUAL.</span>
             </h1>

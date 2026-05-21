@@ -2,10 +2,12 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const PartnershipSchema = new Schema({
-  user1: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  user2: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  status: { type: String, enum: ['pending', 'active'], default: 'pending' },
-  goal: { type: Schema.Types.ObjectId, ref: 'Goal' },
+  requester: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  recipient: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  goal: { type: Schema.Types.ObjectId, ref: 'Goal', required: true },
+  partnerGoal: { type: Schema.Types.ObjectId, ref: 'Goal' }, // Optional: recipient's linked goal
+  status: { type: String, enum: ['pending', 'active', 'declined', 'ended'], default: 'pending' },
+  startedAt: { type: Date },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Partnership', PartnershipSchema);
