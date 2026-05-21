@@ -125,8 +125,8 @@ const getPendingInvites = async (req, res) => {
       recipient: req.user._id,
       status: 'pending'
     })
-    .populate('requester', 'name username avatar')
-    .populate('goal', 'title category deadline');
+      .populate('requester', 'name username avatar')
+      .populate('goal', 'title category deadline');
 
     res.status(200).json({
       success: true,
@@ -171,7 +171,7 @@ const respondToInvite = async (req, res) => {
     if (action === 'accept') {
       partnership.status = 'active';
       partnership.startedAt = new Date();
-      
+
       // Optionally link the recipient's goal
       if (partnerGoalId) {
         const partnerGoal = await Goal.findOne({ _id: partnerGoalId, owner: req.user._id });
@@ -199,34 +199,33 @@ const respondToInvite = async (req, res) => {
 };
 
 /**
- * @desc    Get current user's active partnership and partner profile
+ * @desc    Get current user's active partnerships and partner profiles
  * @route   GET /api/partnerships/active
  * @access  Private
  */
-const getActivePartnership = async (req, res) => {
+const getActivePartnerships = async (req, res) => {
   try {
-    const active = await Partnership.findOne({
+    const activePartnerships = await Partnership.find({
       $or: [{ requester: req.user._id }, { recipient: req.user._id }],
       status: 'active'
     })
-    .populate('requester', 'name username avatar currentStreak categories bio')
-    .populate('recipient', 'name username avatar currentStreak categories bio')
-    .populate('goal', 'title category deadline progress')
-    .populate('partnerGoal', 'title category deadline progress');
+      .populate('requester', 'name username avatar currentStreak categories bio')
+      .populate('recipient', 'name username avatar currentStreak categories bio')
+      .populate('goal', 'title category deadline progress')
+      .populate('partnerGoal', 'title category deadline progress');
 
-    if (!active) {
-      return res.status(200).json({ success: true, data: null });
+    if (!activePartnerships || activePartnerships.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
     }
 
-    // Determine who is the partner
-    const isRequester = active.requester._id.toString() === req.user._id.toString();
-    const partner = isRequester ? active.recipient : active.requester;
-    const myGoal = isRequester ? active.goal : active.partnerGoal;
-    const partnerGoal = isRequester ? active.partnerGoal : active.goal;
+    const mappedPartnerships = activePartnerships.map(active => {
+      // Determine who is the partner
+      const isRequester = active.requester._id.toString() === req.user._id.toString();
+      const partner = isRequester ? active.recipient : active.requester;
+      const myGoal = isRequester ? active.goal : active.partnerGoal;
+      const partnerGoal = isRequester ? active.partnerGoal : active.goal;
 
-    res.status(200).json({
-      success: true,
-      data: {
+      return {
         partnershipId: active._id,
         partner: {
           _id: partner._id,
@@ -239,11 +238,47 @@ const getActivePartnership = async (req, res) => {
         },
         myGoal,
         partnerGoal
-      }
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: mappedPartnerships
     });
   } catch (error) {
-    console.error('Get Active Partnership Error:', error);
-    res.status(500).json({ success: false, message: 'Server error retrieving active partner' });
+    console.error('Get Active Partnerships Error:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving active partners' });
+  }
+};
+
+/**
+ * @desc    Dissolve an active partnership
+ * @route   DELETE /api/partnerships/:id
+ * @access  Private
+ */
+const dissolvePartnership = async (req, res) => {
+  try {
+    const partnership = await Partnership.findOne({
+      _id: req.params.id,
+      $or: [{ requester: req.user._id }, { recipient: req.user._id }],
+      status: 'active'
+    });
+
+    if (!partnership) {
+      return res.status(404).json({ success: false, message: 'Active partnership not found' });
+    }
+
+    partnership.status = 'ended';
+    await partnership.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Partnership successfully dissolved',
+      data: partnership
+    });
+  } catch (error) {
+    console.error('Dissolve Partnership Error:', error);
+    res.status(500).json({ success: false, message: 'Server error dissolving partnership' });
   }
 };
 
@@ -252,5 +287,6 @@ module.exports = {
   invitePartner,
   getPendingInvites,
   respondToInvite,
-  getActivePartnership,
+  getActivePartnerships,
+  dissolvePartnership,
 };

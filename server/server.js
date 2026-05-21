@@ -31,6 +31,30 @@ app.use('/api/checkins', require('./routes/checkin.routes'));
 app.use('/api/partnerships', require('./routes/partnership.routes'));
 // app.use('/api/notifications', require('./routes/notification.routes'));
 
+// Periodic background task: check for missed check-ins and reset streaks
+try {
+  const { runCheckStreaks } = require('./tasks/checkStreaks');
+
+  // Run once on startup
+  runCheckStreaks().catch(err => console.error('Error running initial checkStreaks:', err));
+
+  // Then run every 15 minutes
+  setInterval(() => {
+    runCheckStreaks().catch(err => console.error('Error running checkStreaks:', err));
+  }, 1000 * 60 * 15);
+} catch (err) {
+  console.warn('checkStreaks task could not be loaded:', err.message);
+}
+
+// Streak auditor cron job (requires node-cron)
+try {
+  const { initStreakAuditor } = require('./jobs/streakAuditor');
+  // Use env SERVER_TIMEZONE or default to UTC. Cron library understands IANA timezones.
+  initStreakAuditor(process.env.SERVER_TIMEZONE || 'UTC');
+} catch (err) {
+  console.warn('streakAuditor job could not be loaded (node-cron may be missing):', err.message);
+}
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });

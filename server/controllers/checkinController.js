@@ -216,42 +216,48 @@ const approveCheckIn = async (req, res) => {
 };
 
 /**
- * @desc    Get check-in feed for active partnership (pending partner approval)
+ * @desc    Get check-in feed for active partnerships (pending partner approval)
  * @route   GET /api/checkins/feed
  * @access  Private
  */
 const getCheckInFeed = async (req, res) => {
   try {
-    // Find active partnership first
-    const active = await Partnership.findOne({
+    // Find active partnerships first
+    const activePartnerships = await Partnership.find({
       $or: [{ requester: req.user._id }, { recipient: req.user._id }],
       status: 'active'
     })
     .populate('requester', 'name username')
     .populate('recipient', 'name username');
 
-    if (!active) {
+    if (!activePartnerships || activePartnerships.length === 0) {
       return res.status(200).json({ success: true, data: [] });
     }
 
-    // Determine the partner ID and Name
-    const isRequester = active.requester._id.toString() === req.user._id.toString();
-    const partnerId = isRequester ? active.recipient._id : active.requester._id;
-    const partnerName = isRequester ? active.recipient.name : active.requester.name;
+    // Determine the partner IDs and build a name map
+    const partnerIds = [];
+    const partnerNameMap = {};
 
-    // Find recent checkins by the partner that need approval, or were recently approved
+    activePartnerships.forEach(active => {
+      const isRequester = active.requester._id.toString() === req.user._id.toString();
+      const partner = isRequester ? active.recipient : active.requester;
+      partnerIds.push(partner._id);
+      partnerNameMap[partner._id.toString()] = partner.name;
+    });
+
+    // Find recent checkins by the partners that need approval, or were recently approved
     const checkIns = await CheckIn.find({
-      user: partnerId,
+      user: { $in: partnerIds },
       // Either pending, or approved in the last 48 hours for history
     })
     .sort({ createdAt: -1 })
-    .limit(10)
+    .limit(20)
     .populate('goal', 'title category');
 
     const feedItems = checkIns.map(c => ({
       id: c._id.toString(),
       checkInId: c._id.toString(),
-      partnerName: partnerName,
+      partnerName: partnerNameMap[c.user.toString()] || "Partner",
       action: "completed a check-in",
       goalTitle: c.goal?.title || "Goal",
       timestamp: new Date(c.createdAt).toLocaleDateString(),
