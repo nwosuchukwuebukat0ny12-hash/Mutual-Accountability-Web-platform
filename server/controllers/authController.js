@@ -13,7 +13,8 @@ const sendTokenResponse = (user, statusCode, res) => {
         expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days matching JWT_EXPIRES_IN
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict'
+        sameSite: 'strict',
+        path: '/'
     };
 
     const userResponse = user.toObject();
@@ -57,7 +58,7 @@ const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ $or: [{ email }, { username: email }] });
         if (!user) {
             return res.status(401).json({ success: false, message: 'Invalid email or password' });
         }
@@ -80,7 +81,10 @@ const login = async (req, res) => {
 const logout = async (req, res) => {
     res.cookie('token', 'none', {
         expires: new Date(Date.now() + 10 * 1000), // expire cookie in 10 seconds
-        httpOnly: true
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/'
     });
 
     res.status(200).json({

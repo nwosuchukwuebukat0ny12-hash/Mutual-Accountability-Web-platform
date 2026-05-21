@@ -9,7 +9,6 @@ export const useGoalStore = create((set) => ({
     set({ isLoading: true });
     try {
       const res = await axiosInstance.get("/goals");
-      // Fawaz's controllers usually return data nested in a "data" property (e.g., { success: true, data: [...] })
       const goalsList = res.data.data || res.data;
       set({ goals: Array.isArray(goalsList) ? goalsList : [] });
       return { success: true };
@@ -24,6 +23,7 @@ export const useGoalStore = create((set) => ({
   createGoal: async (goalData) => {
     set({ isLoading: true });
     try {
+      // Map the payload dynamically if needed to match the schema
       const res = await axiosInstance.post("/goals", goalData);
       const newGoal = res.data.data || res.data;
       set((state) => ({ goals: [...state.goals, newGoal] }));
@@ -36,10 +36,10 @@ export const useGoalStore = create((set) => ({
     }
   },
 
-  toggleMilestone: async (goalId, milestoneId) => {
+  toggleMilestone: async (goalId, milestoneIndex) => {
     try {
-      // Direct call to PATCH /api/goals/:goalId/milestones/:milestoneId
-      const res = await axiosInstance.patch(`/goals/${goalId}/milestones/${milestoneId}`);
+      // Direct call to PUT /api/goals/:id/milestone matching Fawaz's backend router
+      const res = await axiosInstance.put(`/goals/${goalId}/milestone`, { milestoneIndex });
       const updatedGoal = res.data.data || res.data;
       
       set((state) => ({
@@ -49,6 +49,17 @@ export const useGoalStore = create((set) => ({
     } catch (error) {
       console.error("Error in toggleMilestone:", error);
       return { success: false, message: error.response?.data?.message || "An error occurred while toggling the milestone" };
+    }
+  },
+
+  // Submit check-in for goal
+  submitCheckIn: async (goalId, note, stake, progress) => {
+    try {
+      const res = await axiosInstance.post("/checkins", { goalId, note, stake, progress });
+      return { success: true, data: res.data.data };
+    } catch (error) {
+      console.error("Error in submitCheckIn:", error);
+      return { success: false, message: error.response?.data?.message || "Failed to submit check-in" };
     }
   },
 }));

@@ -1,23 +1,21 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
-const CheckInSchema = new Schema({
+const CheckinSchema = new Schema({
   goal: { type: Schema.Types.ObjectId, ref: 'Goal', required: true },
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  status: { type: String, enum: ['done', 'missed', 'partial'], required: true },
-  progress: { type: Number, min: 0, max: 100 },
-  note: { type: String, maxLength: 500 }, // Primary proof for V1
+  note: { type: String, required: true, maxLength: 500 }, // Primary proof
+  stake: { type: String }, // Custom stake/bet for this check-in
+  progress: { type: Number, min: 0, max: 100 }, // Progress % at time of check-in
+  status: { type: String, enum: ['pending', 'approved'], default: 'pending' },
+  verifiedBy: { type: Schema.Types.ObjectId, ref: 'User' }, // Backward compat alias for partnerApproval.approvedBy
+  verifiedAt: { type: Date },
   partnerApproval: {
     approved: { type: Boolean, default: false },
-    approvedAt: Date,
-    approvedBy: { type: Schema.Types.ObjectId, ref: 'User' }
+    approvedAt: { type: Date },
+    approvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
-  comments: [{
-    author: { type: Schema.Types.ObjectId, ref: 'User' },
-    text: { type: String, maxLength: 300 },
-    createdAt: { type: Date, default: Date.now }
-  }],
-  streakAtTime: { type: Number },
+  streakAtTime: { type: Number }, // Streak count at time of check-in
 }, { timestamps: true });
 
-module.exports = mongoose.model('CheckIn', CheckInSchema);
+module.exports = mongoose.model('CheckIn', CheckinSchema);

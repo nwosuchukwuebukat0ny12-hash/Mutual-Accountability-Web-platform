@@ -13,7 +13,7 @@ export const useAuthStore = create((set) => ({
     set({ isCheckingAuth: true });
     try {
       const res = await axiosInstance.get("/auth/me");
-      set({ authUser: res.data });
+      set({ authUser: res.data.data.user });
     } catch (error) {
       console.log("Error in checkAuth:", error);
       set({ authUser: null });
@@ -26,7 +26,7 @@ export const useAuthStore = create((set) => ({
     set({ isSigningUp: true });
     try {
       const res = await axiosInstance.post("/auth/register", data);
-      set({ authUser: res.data });
+      set({ authUser: res.data.data.user });
       return { success: true };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || "An error occurred" };
@@ -39,7 +39,7 @@ export const useAuthStore = create((set) => ({
     set({ isLoggingIn: true });
     try {
       const res = await axiosInstance.post("/auth/login", data);
-      set({ authUser: res.data });
+      set({ authUser: res.data.data.user });
       return { success: true };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || "An error occurred" };

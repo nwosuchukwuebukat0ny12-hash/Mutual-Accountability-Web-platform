@@ -5,10 +5,10 @@ const { addDays } = require('date-fns');
 const calculateNextCheckin = (frequency, userTimezone) => {
   const now = new Date();
   const daysToAdd = frequency === 'daily' ? 1 : frequency === 'every2days' ? 2 : 7;
-  
+
   let deadlineDate = addDays(now, daysToAdd);
   let nextCheckinDue = toDate(formatInTimeZone(deadlineDate, userTimezone, "yyyy-MM-dd'T'23:59:59.SSSXXX"), { timeZone: userTimezone });
-  
+
   return nextCheckinDue;
 };
 
