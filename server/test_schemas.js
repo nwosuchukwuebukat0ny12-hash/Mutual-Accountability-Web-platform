@@ -42,8 +42,8 @@ const runTest = async () => {
     // 3. Create a Partnership
     console.log('\n🤝 Creating a partnership...');
     const partnership = await Partnership.create({
-      user1: user1._id,
-      user2: user2._id,
+      requester: user1._id,
+      recipient: user2._id,
       status: 'pending',
       goal: goal._id,
     });

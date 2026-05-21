@@ -25,8 +25,15 @@ const createGoalSchema = z.object({
 // Schema for submitting a check-in
 const submitCheckInSchema = z.object({
   goalId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid goal ID format'),
-  note: z.string().min(1, 'Check-in note (proof) is required').max(500, 'Note cannot exceed 500 characters'),
-  stake: z.string().max(100, 'Stake cannot exceed 100 characters').optional(),
+  note: z.string().min(15, 'Check-in note (proof) must be at least 15 characters to prevent spam').max(500, 'Note cannot exceed 500 characters'),
+  stake: z.union([
+    z.number().positive('Stake must be a valid positive number'),
+    z.string().refine((val) => {
+      if (!val || val.trim() === '') return true;
+      const num = Number(val);
+      return !isNaN(num) && num > 0;
+    }, { message: 'Stake must be a valid positive number' })
+  ]).optional(),
 });
 
 // Schema for sending a partnership invitation

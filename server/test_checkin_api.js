@@ -77,7 +77,7 @@ const runTests = async () => {
       body: {
         goalId: goal._id.toString(),
         note: '', // Empty note to trigger Zod failure
-        stake: '$50',
+        stake: '50', // Fixed: must be a positive number
       }
     };
 
@@ -114,7 +114,7 @@ const runTests = async () => {
       body: {
         goalId: goal._id.toString(),
         note: 'Completed 5 Recursion problems today. Proof attached.',
-        stake: 'Buy partner coffee',
+        stake: '10', // Fixed: must be a positive number
       }
     };
 
@@ -160,8 +160,8 @@ const runTests = async () => {
     // First, establish active partnership
     console.log('  🤝 Creating active partnership between owner and partner...');
     const partnership = await Partnership.create({
-      user1: user1._id,
-      user2: user2._id,
+      requester: user1._id,
+      recipient: user2._id,
       status: 'active',
       goal: goal._id,
     });
@@ -175,7 +175,7 @@ const runTests = async () => {
       json: function (data) {
         console.log('  -> Status:', this.statusCode);
         console.log('  -> Response:', JSON.stringify(data));
-        if (this.statusCode === 200 && data.success && data.data.status === 'approved' && data.data.verifiedBy.toString() === user2._id.toString()) {
+        if (this.statusCode === 200 && data.success && data.data.status === 'approved' && data.data.partnerApproval.approvedBy.toString() === user2._id.toString()) {
           console.log('  ✅ TEST 4 PASSED: Check-in approved by partner successfully!');
           partnerApproved = true;
         } else {

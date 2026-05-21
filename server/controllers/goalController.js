@@ -79,37 +79,80 @@ const getGoals = async (req, res) => {
  */
 const toggleMilestone = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { milestoneIndex } = req.body;
-
-    if (typeof milestoneIndex !== 'number') {
-      return res.status(400).json({ success: false, message: 'milestoneIndex is required and must be a number' });
+    const goalId = req.params.goalId || req.params.id;
+    let milestoneIndex = req.params.milestoneIndex;
+    
+    // Support body index for backward compatibility with old route
+    if (milestoneIndex === undefined) {
+      milestoneIndex = req.body.milestoneIndex;
     }
 
-    const goal = await Goal.findOne({ _id: id, owner: req.user._id });
+    const idx = parseInt(milestoneIndex, 10);
+    if (isNaN(idx) || idx < 0) {
+      return res.status(400).json({ success: false, message: 'milestoneIndex must be a non-negative integer' });
+    }
 
+    const goal = await Goal.findOne({ _id: goalId, owner: req.user._id });
     if (!goal) {
       return res.status(404).json({ success: false, message: 'Goal not found' });
     }
 
-    if (milestoneIndex < 0 || milestoneIndex >= goal.milestones.length) {
+    if (idx >= goal.milestones.length) {
       return res.status(400).json({ success: false, message: 'Invalid milestone index' });
     }
 
-    // Toggle milestone
-    goal.milestones[milestoneIndex].completed = !goal.milestones[milestoneIndex].completed;
+    const currentCompleted = goal.milestones[idx].completed;
+    const newCompleted = !currentCompleted;
 
-    // Recalculate progress based on milestones, if milestones exist
-    if (goal.milestones.length > 0) {
-      const completedMilestones = goal.milestones.filter((m) => m.completed).length;
-      goal.progress = Math.round((completedMilestones / goal.milestones.length) * 100);
+    // Recalculate progress
+    const completedMilestonesCount = goal.milestones.reduce((acc, m, i) => {
+      const isCompleted = i === idx ? newCompleted : m.completed;
+      return acc + (isCompleted ? 1 : 0);
+    }, 0);
+
+    const progress = goal.milestones.length > 0
+      ? Math.round((completedMilestonesCount / goal.milestones.length) * 100)
+      : 0;
+
+    // Determine status and user stat changes
+    let newStatus = goal.status;
+    let userUpdate = null;
+
+    if (progress === 100) {
+      if (goal.status !== 'completed') {
+        newStatus = 'completed';
+        userUpdate = { $inc: { completedGoals: 1 } };
+      }
+    } else {
+      if (goal.status === 'completed') {
+        newStatus = 'active';
+        userUpdate = { $inc: { completedGoals: -1 } };
+      }
     }
 
-    await goal.save();
+    // Perform Mongoose atomic update
+    const completedPath = `milestones.${idx}.completed`;
+    const updatedGoal = await Goal.findOneAndUpdate(
+      { _id: goalId, owner: req.user._id },
+      { 
+        $set: { 
+          [completedPath]: newCompleted,
+          progress,
+          status: newStatus
+        } 
+      },
+      { new: true }
+    );
+
+    // Increment or decrement the completedGoals streak/stats on the User schema if needed
+    if (userUpdate) {
+      const User = require('../models/User');
+      await User.findByIdAndUpdate(req.user._id, userUpdate);
+    }
 
     res.status(200).json({
       success: true,
-      data: goal,
+      data: updatedGoal,
     });
   } catch (error) {
     console.error('Toggle Milestone Error:', error);
