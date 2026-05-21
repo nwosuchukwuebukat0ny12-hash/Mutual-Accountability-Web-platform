@@ -7,6 +7,7 @@ export const useAuthStore = create((set) => ({
   isLoggingIn: false,
   isLoggingOut: false,
   isCheckingAuth: true,
+  isUpdatingProfile: false,
 
   checkAuth: async () => {
     set({ isCheckingAuth: true });
@@ -60,19 +61,19 @@ export const useAuthStore = create((set) => ({
   },
 
   updateProfileSettings: async (data) => {
+    set({ isUpdatingProfile: true });
     try {
-      // In a real scenario, this would call: await axiosInstance.put("/auth/profile", data);
-      // For now, we optimistically update the local state so the UI reflects changes instantly
-      set((state) => ({
-        authUser: {
-          ...state.authUser,
-          ...data,
-        }
-      }));
+      const res = await axiosInstance.patch("/auth/profile", data);
+      set({ authUser: res.data });
       return { success: true };
     } catch (error) {
-      console.log("Error in updateProfileSettings:", error);
-      return { success: false, message: "Failed to update profile settings" };
+      console.error("Error updating profile settings:", error);
+      return { 
+        success: false, 
+        message: error.response?.data?.message || "An error occurred while updating the profile" 
+      };
+    } finally {
+      set({ isUpdatingProfile: false });
     }
   },
 }));
