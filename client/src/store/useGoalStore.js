@@ -38,8 +38,8 @@ export const useGoalStore = create((set) => ({
 
   toggleMilestone: async (goalId, milestoneIndex) => {
     try {
-      // Direct call to PUT /api/goals/:id/milestone matching Fawaz's backend router
-      const res = await axiosInstance.put(`/goals/${goalId}/milestone`, { milestoneIndex });
+      // Direct call to PUT /api/goals/:goalId/milestones/:milestoneIndex/toggle
+      const res = await axiosInstance.put(`/goals/${goalId}/milestones/${milestoneIndex}/toggle`);
       const updatedGoal = res.data.data || res.data;
       
       set((state) => ({
