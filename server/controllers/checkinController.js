@@ -86,13 +86,19 @@ const approveCheckIn = async (req, res) => {
       });
     }
 
-    // 3. Verify partnership exists and is active between check-in owner and current user (partner)
+    // 3. Verify partnership exists, is active, AND is linked to this check-in's goal
     const partnership = await Partnership.findOne({
-      $or: [
-        { requester: checkIn.user, recipient: partnerId },
-        { recipient: checkIn.user, requester: partnerId },
-      ],
-      status: 'active',
+      $and: [
+        { status: 'active' },
+        { $or: [
+          { requester: checkIn.user, recipient: partnerId },
+          { recipient: checkIn.user, requester: partnerId },
+        ]},
+        { $or: [
+          { goal: checkIn.goal },
+          { partnerGoal: checkIn.goal }
+        ]}
+      ]
     });
 
     if (!partnership) {
@@ -197,6 +203,17 @@ const approveCheckIn = async (req, res) => {
 
     await goal.save();
 
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${checkIn.user.toString()}`).emit('checkin_approved', {
+        checkInId: checkIn._id,
+        streak: {
+          currentStreak: checkinOwner.currentStreak,
+          longestStreak: checkinOwner.longestStreak,
+        },
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: 'Check-in approved successfully! Partner pulse and streaks updated.',
@@ -231,7 +248,7 @@ const getCheckInFeed = async (req, res) => {
     .populate('recipient', 'name username');
 
     if (!activePartnerships || activePartnerships.length === 0) {
-      return res.status(200).json({ success: true, data: [] });
+      return res.status(200).json({ success: true, data: [], hasMore: false, nextCursor: null });
     }
 
     // Determine the partner IDs and build a name map
@@ -245,16 +262,26 @@ const getCheckInFeed = async (req, res) => {
       partnerNameMap[partner._id.toString()] = partner.name;
     });
 
-    // Find recent checkins by the partners that need approval, or were recently approved
-    const checkIns = await CheckIn.find({
-      user: { $in: partnerIds },
-      // Either pending, or approved in the last 48 hours for history
-    })
-    .sort({ createdAt: -1 })
-    .limit(20)
-    .populate('goal', 'title category');
+    const limit = parseInt(req.query.limit) || 10;
+    const query = { user: { $in: partnerIds } };
+    
+    // If cursor (timestamp string) is passed, get items created before that timestamp
+    if (req.query.cursor) {
+      query.createdAt = { $lt: new Date(req.query.cursor) };
+    }
 
-    const feedItems = checkIns.map(c => ({
+    // Find recent checkins by the partners that need approval, or were recently approved
+    // Fetch one extra item to determine if there is a next page
+    const checkIns = await CheckIn.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit + 1)
+      .populate('goal', 'title category');
+
+    const hasMore = checkIns.length > limit;
+    const paginatedCheckIns = hasMore ? checkIns.slice(0, limit) : checkIns;
+    const nextCursor = hasMore && paginatedCheckIns.length > 0 ? paginatedCheckIns[paginatedCheckIns.length - 1].createdAt : null;
+
+    const feedItems = paginatedCheckIns.map(c => ({
       id: c._id.toString(),
       checkInId: c._id.toString(),
       partnerName: partnerNameMap[c.user.toString()] || "Partner",
@@ -265,10 +292,11 @@ const getCheckInFeed = async (req, res) => {
       approved: c.status === 'approved',
       isBadge: false,
       comments: c.comments || [],
-      reactions: c.reactions || { fire: 0, clap: 0, muscle: 0 }
+      reactions: c.reactions || { fire: 0, clap: 0, muscle: 0 },
+      createdAt: c.createdAt
     }));
 
-    res.status(200).json({ success: true, data: feedItems });
+    res.status(200).json({ success: true, data: feedItems, hasMore, nextCursor });
   } catch (error) {
     console.error('Get Checkin Feed Error:', error);
     res.status(500).json({ success: false, message: 'Server error retrieving feed' });
@@ -316,6 +344,14 @@ const addComment = async (req, res) => {
     // Re-fetch to populate user
     const updatedCheckIn = await CheckIn.findById(req.params.id).populate('comments.user', 'name username');
 
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${checkIn.user.toString()}`).emit('comment_added', {
+        checkInId: req.params.id,
+        comments: updatedCheckIn.comments,
+      });
+    }
+
     res.status(201).json({ success: true, data: updatedCheckIn.comments });
   } catch (error) {
     console.error('Add Comment Error:', error);
@@ -342,6 +378,14 @@ const addReaction = async (req, res) => {
     checkIn.reactions[type] += 1;
     await checkIn.save();
 
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${checkIn.user.toString()}`).emit('reaction_added', {
+        checkInId: req.params.id,
+        reactions: checkIn.reactions,
+      });
+    }
+
     res.status(200).json({ success: true, data: checkIn.reactions });
   } catch (error) {
     console.error('Add Reaction Error:', error);
@@ -356,31 +400,43 @@ const addReaction = async (req, res) => {
  */
 const getPublicCheckIns = async (req, res) => {
   try {
-    const checkIns = await CheckIn.find({ status: 'approved' })
+    const limit = parseInt(req.query.limit) || 10;
+    const query = { status: 'approved' };
+    
+    if (req.query.cursor) {
+      query.createdAt = { $lt: new Date(req.query.cursor) };
+    }
+
+    const checkIns = await CheckIn.find(query)
       .sort({ createdAt: -1 })
-      .limit(30)
-      .populate('user', 'name username')
-      .populate({
-        path: 'goal',
-        select: 'title category isPublic',
-        match: { isPublic: true }
-      });
+      .limit(limit + 1)
+      .populate('user', 'name username avatar currentStreak')
+      .populate('goal', 'title category');
 
-    const publicCheckIns = checkIns.filter(c => c.goal !== null);
+    const hasMore = checkIns.length > limit;
+    const paginatedCheckIns = hasMore ? checkIns.slice(0, limit) : checkIns;
+    const nextCursor = hasMore && paginatedCheckIns.length > 0 ? paginatedCheckIns[paginatedCheckIns.length - 1].createdAt : null;
 
-    const feedItems = publicCheckIns.map(c => ({
-      id: c._id.toString(),
-      checkInId: c._id.toString(),
-      userName: c.user?.name || 'User',
-      username: c.user?.username || 'user',
-      goalTitle: c.goal?.title || 'Goal',
-      timestamp: new Date(c.createdAt).toLocaleDateString(),
+    const feedItems = paginatedCheckIns.map(c => ({
+      _id: c._id.toString(),
+      user: {
+        _id: c.user?._id,
+        name: c.user?.name || 'User',
+        username: c.user?.username || 'user',
+        avatar: c.user?.avatar || '',
+        currentStreak: c.user?.currentStreak || 0
+      },
+      goal: {
+        title: c.goal?.title || 'Goal',
+        category: c.goal?.category || 'other'
+      },
       note: c.note,
+      createdAt: c.createdAt,
       comments: c.comments || [],
       reactions: c.reactions || { fire: 0, clap: 0, muscle: 0 }
     }));
 
-    res.status(200).json({ success: true, data: feedItems });
+    res.status(200).json({ success: true, data: feedItems, hasMore, nextCursor });
   } catch (error) {
     console.error('Get Public Checkins Error:', error);
     res.status(500).json({ success: false, message: 'Server error retrieving public checkins' });

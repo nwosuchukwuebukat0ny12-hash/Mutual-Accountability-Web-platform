@@ -1,10 +1,11 @@
+import { useEffect, useRef } from "react";
 import { useOutletContext } from "react-router-dom";
 
 const DashboardPage = () => {
   const context = useOutletContext();
   const {
     authUser, goals, partner, activePartnersList, activePactsList, checkInHistory,
-    feed, approveCheckin, respondToInvite, searchUser, sendInvite,
+    feed, feedHasMore, feedIsLoadingMore, fetchMoreFeed, approveCheckin, respondToInvite, searchUser, sendInvite,
     isGoalsLoading, pendingMilestonesCount, hasUncheckedActiveGoal, getDaysLeft, incomingPendingInvites,
     sidebarOpen, setSidebarOpen, isNewGoalModalOpen, setIsNewGoalModalOpen,
     goalTitle, setGoalTitle, goalCategory, setGoalCategory, goalDescription, setGoalDescription, goalDeadline, setGoalDeadline, goalFrequency, setGoalFrequency, goalMilestones, setGoalMilestones, goalError, setGoalError,
@@ -14,8 +15,67 @@ const DashboardPage = () => {
     settingsTimezone, setSettingsTimezone, settingsBio, setSettingsBio, settingsCategories, setSettingsCategories, updateProfileSettings
   } = context;
 
+  const observerRef = useRef(null);
+
+  useEffect(() => {
+    if (!feedHasMore || feedIsLoadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchMoreFeed();
+        }
+      },
+      { threshold: 0.1, rootMargin: "200px" }
+    );
+
+    const currentRef = observerRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [feedHasMore, feedIsLoadingMore, fetchMoreFeed]);
+
   return (
     <>
+      <style>{`
+        @keyframes premium-shimmer {
+          0% {
+            background-position: -200% 0;
+          }
+          100% {
+            background-position: 200% 0;
+          }
+        }
+        .animate-premium-shimmer {
+          background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.6) 50%,
+            rgba(255, 255, 255, 0) 100%
+          );
+          background-size: 200% 100%;
+          animation: premium-shimmer 1.6s infinite linear;
+        }
+        .animate-premium-pulse {
+          animation: premium-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes premium-pulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: .85;
+            transform: scale(0.995);
+          }
+        }
+      `}</style>
       {/* Quick Metrics Row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-10">
                 <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -336,6 +396,52 @@ const DashboardPage = () => {
                         ))
                       )}
                     </div>
+
+                    {/* Infinite Scroll Intersection Observer Trigger & Premium Skeletons */}
+                    {feedHasMore && (
+                      <div ref={observerRef} className="pt-2">
+                        {feedIsLoadingMore ? (
+                          <div className="space-y-6">
+                            {[1, 2].map((n) => (
+                              <div key={n} className="flex gap-4 relative animate-premium-pulse">
+                                {/* Connector line skeleton */}
+                                <div className="absolute top-10 left-5 w-px h-[calc(100%-10px)] bg-gray-200/50 z-0"></div>
+
+                                <div className="w-10 h-10 shrink-0 rounded-full bg-white/60 border border-gray-200/50 shadow-sm relative z-10 overflow-hidden">
+                                  <div className="w-full h-full animate-premium-shimmer"></div>
+                                </div>
+
+                                <div className="flex-1 pb-2 space-y-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-4 bg-gray-200/60 rounded-md w-1/3 relative overflow-hidden">
+                                      <div className="absolute inset-0 animate-premium-shimmer"></div>
+                                    </div>
+                                    <div className="h-3 bg-gray-200/40 rounded-md w-1/4 relative overflow-hidden">
+                                      <div className="absolute inset-0 animate-premium-shimmer"></div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="h-3 bg-gray-200/40 rounded-md w-1/6 relative overflow-hidden">
+                                    <div className="absolute inset-0 animate-premium-shimmer"></div>
+                                  </div>
+
+                                  <div className="bg-white/40 backdrop-blur-md p-4 rounded-xl border border-white/40 shadow-sm relative overflow-hidden h-20">
+                                    <div className="absolute inset-0 animate-premium-shimmer"></div>
+                                    <div className="absolute -left-1.5 top-3 w-3 h-3 bg-white/40 border-l border-b border-white/40 transform rotate-45"></div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="h-6 flex items-center justify-center">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400/60 animate-pulse">
+                              Loading older updates...
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Alert Banner for Streak at Risk */}
                     {hasUncheckedActiveGoal && (

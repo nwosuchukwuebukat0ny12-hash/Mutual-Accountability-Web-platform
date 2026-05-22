@@ -10,4 +10,6 @@ const PartnershipSchema = new Schema({
   startedAt: { type: Date },
 }, { timestamps: true });
 
+PartnershipSchema.index({ requester: 1, recipient: 1, status: 1 });
+
 module.exports = mongoose.model('Partnership', PartnershipSchema);

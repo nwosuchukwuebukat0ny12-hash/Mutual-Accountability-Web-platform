@@ -1,15 +1,76 @@
+import { useEffect, useRef } from "react";
 import { useOutletContext } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 
 const CommunityPage = () => {
   const context = useOutletContext() || {};
-  // The user instructed: const { publicFeed, leaderboard } = useOutletContext();
-  // We'll safely default to empty arrays to prevent mapping errors if context is not yet updated
-  const publicFeed = context.publicFeed || context.feed || [];
+  const publicFeed = context.publicFeed || [];
   const leaderboard = context.leaderboard || [];
+  const publicFeedHasMore = context.publicFeedHasMore || false;
+  const publicFeedIsLoadingMore = context.publicFeedIsLoadingMore || false;
+  const fetchMorePublicFeed = context.fetchMorePublicFeed || (() => {});
+
+  const observerRef = useRef(null);
+
+  useEffect(() => {
+    if (!publicFeedHasMore || publicFeedIsLoadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchMorePublicFeed();
+        }
+      },
+      { threshold: 0.1, rootMargin: "200px" }
+    );
+
+    const currentRef = observerRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [publicFeedHasMore, publicFeedIsLoadingMore, fetchMorePublicFeed]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-300">
+      <style>{`
+        @keyframes premium-shimmer {
+          0% {
+            background-position: -200% 0;
+          }
+          100% {
+            background-position: 200% 0;
+          }
+        }
+        .animate-premium-shimmer {
+          background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.6) 50%,
+            rgba(255, 255, 255, 0) 100%
+          );
+          background-size: 200% 100%;
+          animation: premium-shimmer 1.6s infinite linear;
+        }
+        .animate-premium-pulse {
+          animation: premium-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes premium-pulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: .85;
+            transform: scale(0.995);
+          }
+        }
+      `}</style>
       
       {/* Proof of work Feed */}
       <div className="lg:col-span-2 space-y-8">
@@ -32,17 +93,17 @@ const CommunityPage = () => {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-md border border-slate-200 shadow-sm overflow-hidden bg-white shrink-0">
                         <img 
-                          src={post.user?.avatar || `https://ui-avatars.com/api/?name=${post.user?.name || 'User'}&background=ecfdf5&color=10B981`} 
-                          alt={post.user?.name || "User"} 
+                          src={post.user?.avatar || `https://ui-avatars.com/api/?name=${post.user?.name || post.userName || 'User'}&background=ecfdf5&color=10B981`} 
+                          alt={post.user?.name || post.userName || "User"} 
                           className="w-full h-full object-cover" 
                         />
                       </div>
                       <div>
                         <h4 className="font-bold text-sm text-slate-900 leading-tight">
-                          {post.user?.name || "Anonymous User"}
+                          {post.user?.name || post.userName || "Anonymous User"}
                         </h4>
                         <p className="text-[10px] text-slate-500 font-medium">
-                          @{post.user?.username || "user"} • {post.createdAt ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }) : "recently"}
+                          @{post.user?.username || post.username || "user"} • {post.createdAt ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }) : "recently"}
                         </p>
                       </div>
                     </div>
@@ -63,7 +124,7 @@ const CommunityPage = () => {
                     </span>
                     <button 
                       type="button" 
-                      onClick={() => context.showToast?.(`Nudged ${post.user?.name || 'User'}! 🚀`)}
+                      onClick={() => context.showToast?.(`Nudged ${post.user?.name || post.userName || 'User'}! 🚀`)}
                       className="text-[#10B981] hover:text-emerald-700 hover:underline flex items-center gap-1 transition-colors"
                     >
                       👍 Nudge Support
@@ -74,6 +135,68 @@ const CommunityPage = () => {
             ) : (
               <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-md">
                 <p className="text-slate-500 font-medium text-sm">No recent check-ins. Be the first to post!</p>
+              </div>
+            )}
+
+            {/* IntersectionObserver Infinite Scroll Trigger and Skeletons */}
+            {publicFeedHasMore && (
+              <div ref={observerRef} className="pt-4 space-y-6">
+                {publicFeedIsLoadingMore ? (
+                  <div className="space-y-6">
+                    {[1, 2].map((n) => (
+                      <div 
+                        key={n} 
+                        className="p-5 border border-slate-200/50 rounded-md bg-slate-50/30 backdrop-blur-md relative overflow-hidden animate-premium-pulse shadow-sm"
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex items-center gap-3 w-full">
+                            <div className="w-10 h-10 rounded-md border border-slate-200/50 bg-white/60 shrink-0 overflow-hidden relative">
+                              <div className="absolute inset-0 animate-premium-shimmer"></div>
+                            </div>
+                            <div className="space-y-2 w-1/2">
+                              <div className="h-3.5 bg-slate-200/70 rounded w-2/3 relative overflow-hidden">
+                                <div className="absolute inset-0 animate-premium-shimmer"></div>
+                              </div>
+                              <div className="h-2 bg-slate-200/40 rounded w-1/2 relative overflow-hidden">
+                                <div className="absolute inset-0 animate-premium-shimmer"></div>
+                              </div>
+                            </div>
+                          </div>
+                          {/* Streak badge skeleton */}
+                          <div className="h-5 bg-orange-100/40 border border-orange-200/30 rounded w-16 relative overflow-hidden shrink-0">
+                            <div className="absolute inset-0 animate-premium-shimmer"></div>
+                          </div>
+                        </div>
+                        
+                        {/* Note body skeleton */}
+                        <div className="space-y-2 mb-5">
+                          <div className="h-3.5 bg-slate-200/60 rounded w-11/12 relative overflow-hidden">
+                            <div className="absolute inset-0 animate-premium-shimmer"></div>
+                          </div>
+                          <div className="h-3.5 bg-slate-200/60 rounded w-5/6 relative overflow-hidden">
+                            <div className="absolute inset-0 animate-premium-shimmer"></div>
+                          </div>
+                        </div>
+                        
+                        {/* Bottom metadata row skeleton */}
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-100/50">
+                          <div className="h-3 bg-slate-200/40 rounded w-1/3 relative overflow-hidden">
+                            <div className="absolute inset-0 animate-premium-shimmer"></div>
+                          </div>
+                          <div className="h-3 bg-slate-200/40 rounded w-20 relative overflow-hidden">
+                            <div className="absolute inset-0 animate-premium-shimmer"></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-6 flex items-center justify-center">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600/60 animate-pulse">
+                      Loading older updates...
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>

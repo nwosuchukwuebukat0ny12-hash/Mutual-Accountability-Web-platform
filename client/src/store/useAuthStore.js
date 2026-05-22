@@ -8,6 +8,7 @@ export const useAuthStore = create((set) => ({
   isLoggingOut: false,
   isCheckingAuth: true,
   isUpdatingProfile: false,
+  isDeletingAccount: false,
 
   checkAuth: async () => {
     set({ isCheckingAuth: true });
@@ -74,6 +75,23 @@ export const useAuthStore = create((set) => ({
       };
     } finally {
       set({ isUpdatingProfile: false });
+    }
+  },
+
+  deleteAccount: async () => {
+    set({ isDeletingAccount: true });
+    try {
+      await axiosInstance.delete("/auth/me");
+      set({ authUser: null });
+      return { success: true };
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      return { 
+        success: false, 
+        message: error.response?.data?.message || "An error occurred while deleting the account" 
+      };
+    } finally {
+      set({ isDeletingAccount: false });
     }
   },
 }));

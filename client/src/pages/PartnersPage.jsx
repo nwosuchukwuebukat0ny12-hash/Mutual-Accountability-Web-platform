@@ -4,7 +4,7 @@ const PartnersPage = () => {
   const context = useOutletContext();
   const {
     authUser, goals, partner, activePartnersList, activePactsList,
-    feed, approveCheckin, respondToInvite, searchUser, sendInvite, dissolvePartnership,
+    feed, approveCheckin, respondToInvite, searchUser, sendInvite, dissolvePartnership, fetchPartnerships,
     isGoalsLoading, pendingMilestonesCount, hasUncheckedActiveGoal, getDaysLeft, incomingPendingInvites,
     sidebarOpen, setSidebarOpen, isNewGoalModalOpen, setIsNewGoalModalOpen,
     goalTitle, setGoalTitle, goalCategory, setGoalCategory, goalDescription, setGoalDescription, goalDeadline, setGoalDeadline, goalFrequency, setGoalFrequency, goalMilestones, setGoalMilestones, goalError, setGoalError,

@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { checkAuth } = require('../middleware/checkAuth');
+const { protect } = require('../middleware/auth');
 const Notification = require('../models/Notification');
 
 // @desc    Send a Fire Nudge to a partner
 // @route   POST /api/notifications/nudge
 // @access  Private
-router.post('/nudge', checkAuth, async (req, res) => {
+router.post('/nudge', protect, async (req, res) => {
   try {
     const { recipientId } = req.body;
     if (!recipientId) {
@@ -22,6 +22,15 @@ router.post('/nudge', checkAuth, async (req, res) => {
       data: { senderId: req.user._id, senderName: req.user.name }
     });
 
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${recipientId}`).emit('nudge_received', {
+        message,
+        senderName: req.user.name,
+        senderId: req.user._id,
+      });
+    }
+
     res.status(201).json({
       success: true,
       data: notification
@@ -35,7 +44,7 @@ router.post('/nudge', checkAuth, async (req, res) => {
 // @desc    Get all notifications for the logged in user
 // @route   GET /api/notifications
 // @access  Private
-router.get('/', checkAuth, async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
     const notifications = await Notification.find({ user: req.user._id }).sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: notifications });
@@ -48,7 +57,7 @@ router.get('/', checkAuth, async (req, res) => {
 // @desc    Mark a notification as read
 // @route   PUT /api/notifications/:id/read
 // @access  Private
-router.put('/:id/read', checkAuth, async (req, res) => {
+router.put('/:id/read', protect, async (req, res) => {
   try {
     const notification = await Notification.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },

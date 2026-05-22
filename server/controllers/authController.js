@@ -1,6 +1,10 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Goal = require('../models/Goal');
+const CheckIn = require('../models/CheckIn');
+const Partnership = require('../models/Partnership');
+const Notification = require('../models/Notification');
 
 // Helper to generate token and send cookie response
 const sendTokenResponse = (user, statusCode, res) => {
@@ -134,4 +138,29 @@ const updateProfile = async (req, res) => {
     }
 };
 
-module.exports = { register, login, logout, getMe, updateProfile };
+const deleteAccount = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Clean up user data
+        await Goal.deleteMany({ owner: userId });
+        await CheckIn.deleteMany({ user: userId });
+        await Partnership.deleteMany({ $or: [{ requester: userId }, { recipient: userId }] });
+        await Notification.deleteMany({ user: userId });
+        await User.findByIdAndDelete(userId);
+
+        res.cookie('token', 'none', {
+            expires: new Date(Date.now() + 10 * 1000), // expire cookie in 10 seconds
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            path: '/'
+        });
+
+        res.status(200).json({ success: true, message: 'Account deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+module.exports = { register, login, logout, getMe, updateProfile, deleteAccount };

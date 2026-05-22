@@ -20,4 +20,6 @@ const GoalSchema = new Schema({
   nextCheckinDue: { type: Date },
 }, { timestamps: true });
 
+GoalSchema.index({ owner: 1, status: 1 });
+
 module.exports = mongoose.model('Goal', GoalSchema);

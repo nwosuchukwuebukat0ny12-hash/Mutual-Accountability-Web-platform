@@ -30,5 +30,6 @@ const UserSchema = new Schema({
 
 // Text search index
 UserSchema.index({ username: 'text', name: 'text' });
+UserSchema.index({ currentStreak: -1 });
 
 module.exports = mongoose.model('User', UserSchema);

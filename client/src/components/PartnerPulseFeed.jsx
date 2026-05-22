@@ -30,16 +30,16 @@ const PartnerPulseFeed = ({ partnership }) => {
       status: "done",
       note: "Finished writing the store files and verified all the API mappings with the backend schema!",
       progress: 65,
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+      createdAt: "2026-05-22T08:00:00.000Z", // Mock static ISO time
       approved: false,
       comments: [
-        { id: "c1", author: { name: "You" }, text: "Clean code structure! Let's get this wired up on the Dashboard Page next.", createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString() }
+        { id: "c1", author: { name: "You" }, text: "Clean code structure! Let's get this wired up on the Dashboard Page next.", createdAt: "2026-05-22T09:30:00.000Z" }
       ]
     }
   ]);
 
   const [commentInput, setCommentInput] = useState("");
-  const [activeFeedId, setActiveFeedId] = useState("f1");
+  const [activeFeedId] = useState("f1");
 
   const handleApprove = (itemId) => {
     setFeedItems((prev) =>

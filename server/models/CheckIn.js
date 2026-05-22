@@ -28,4 +28,10 @@ const CheckinSchema = new Schema({
   }
 }, { timestamps: true });
 
+CheckinSchema.index({ goal: 1, createdAt: -1 });
+CheckinSchema.index({ user: 1, status: 1 });
+CheckinSchema.index({ status: 1, createdAt: -1 });
+CheckinSchema.index({ user: 1, createdAt: -1 });
+
 module.exports = mongoose.model('CheckIn', CheckinSchema);
+

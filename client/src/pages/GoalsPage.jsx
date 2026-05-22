@@ -61,6 +61,20 @@ const GoalsPage = () => {
                           const history = checkInHistory[goal._id] || [];
                           const checkIn = history.find(c => c.createdAt.startsWith(dateStr));
 
+                          // Determine if this date is an expected check-in day based on frequency
+                          const freq = goal.frequency || 'daily';
+                          const goalStart = new Date(goal.createdAt);
+                          goalStart.setHours(0, 0, 0, 0);
+                          const cellDate = new Date(dateStr);
+                          const diffDays = Math.round((cellDate - goalStart) / (1000 * 60 * 60 * 24));
+
+                          let isExpectedDay = true; // daily by default
+                          if (freq === 'every2days') {
+                            isExpectedDay = diffDays >= 0 && diffDays % 2 === 0;
+                          } else if (freq === 'weekly') {
+                            isExpectedDay = diffDays >= 0 && diffDays % 7 === 0;
+                          }
+
                           let statusClass = "bg-[#e2e8f0]";
                           let tooltipMsg = `No check-in (${dateStr})`;
 
@@ -72,12 +86,17 @@ const GoalsPage = () => {
                               statusClass = "bg-[#f97316]";
                               tooltipMsg = `Pending partner approval (${dateStr})`;
                             }
-                          } else if (new Date(dateStr) < new Date(goal.createdAt).setHours(0,0,0,0)) {
+                          } else if (cellDate < goalStart) {
                             statusClass = "bg-[#e2e8f0]";
                             tooltipMsg = `Before goal creation (${dateStr})`;
-                          } else if (new Date(dateStr) < new Date().setHours(0,0,0,0)) {
-                            statusClass = "bg-[#ef4444]";
-                            tooltipMsg = `Missed check-in (${dateStr})`;
+                          } else if (cellDate < new Date(new Date().setHours(0,0,0,0))) {
+                            if (isExpectedDay) {
+                              statusClass = "bg-[#ef4444]";
+                              tooltipMsg = `Missed check-in (${dateStr})`;
+                            } else {
+                              statusClass = "bg-[#e2e8f0]";
+                              tooltipMsg = `Off day (${dateStr})`;
+                            }
                           }
 
                           return (

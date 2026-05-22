@@ -1,11 +1,37 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
+
+// Initialize Socket.io
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    credentials: true,
+  },
+});
+
+io.on('connection', (socket) => {
+  console.log('🔌 User connected:', socket.id);
+
+  socket.on('join_user', (userId) => {
+    socket.join(`user_${userId}`);
+    console.log(`User ${userId} joined their room`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔌 User disconnected:', socket.id);
+  });
+});
+
+app.set('io', io);
 
 // Connect to MongoDB before starting the server
 connectDB();
@@ -56,6 +82,6 @@ try {
   console.warn('streakAuditor job could not be loaded (node-cron may be missing):', err.message);
 }
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });

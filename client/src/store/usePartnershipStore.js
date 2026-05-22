@@ -1,8 +1,11 @@
 import { create } from "zustand";
 import axiosInstance from "../lib/axios";
 
-export const usePartnershipStore = create((set) => ({
+export const usePartnershipStore = create((set, get) => ({
   feed: [],
+  feedHasMore: false,
+  feedNextCursor: null,
+  feedIsLoadingMore: false,
   partnerships: [],
   activePartners: [],
   searchResults: [],
@@ -10,6 +13,9 @@ export const usePartnershipStore = create((set) => ({
   activePartnershipData: null,
   isLoading: false,
   publicFeed: [],
+  publicFeedHasMore: false,
+  publicFeedNextCursor: null,
+  publicFeedIsLoadingMore: false,
   leaderboard: [],
 
   fetchActivePartnership: async () => {
@@ -34,10 +40,13 @@ export const usePartnershipStore = create((set) => ({
   fetchFeed: async () => {
     set({ isLoading: true });
     try {
-      const res = await axiosInstance.get("/checkins/feed");
-      const feedItems = res.data.data || res.data || [];
-      const processedFeed = Array.isArray(feedItems) ? feedItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : [];
-      set({ feed: processedFeed });
+      const res = await axiosInstance.get("/checkins/feed?limit=10");
+      const feedItems = res.data.data || [];
+      set({ 
+        feed: feedItems, 
+        feedHasMore: res.data.hasMore || false,
+        feedNextCursor: res.data.nextCursor || null
+      });
       return { success: true };
     } catch (error) {
       console.error("Error fetching feed:", error);
@@ -47,19 +56,108 @@ export const usePartnershipStore = create((set) => ({
     }
   },
 
+  fetchMoreFeed: async () => {
+    const { feedNextCursor, feedHasMore, feedIsLoadingMore, feed } = get();
+    if (!feedHasMore || feedIsLoadingMore || !feedNextCursor) return { success: true };
+
+    set({ feedIsLoadingMore: true });
+    try {
+      const res = await axiosInstance.get(`/checkins/feed?cursor=${feedNextCursor}&limit=10`);
+      const newItems = res.data.data || [];
+      
+      const mergedMap = new Map();
+      feed.forEach(item => {
+        const id = item.id || item._id || item.checkInId;
+        if (id) {
+          mergedMap.set(id, item);
+        } else {
+          mergedMap.set(item, item);
+        }
+      });
+
+      newItems.forEach(item => {
+        const id = item.id || item._id || item.checkInId;
+        if (id) {
+          const existing = mergedMap.get(id);
+          mergedMap.set(id, existing ? { ...existing, ...item } : item);
+        } else {
+          mergedMap.set(item, item);
+        }
+      });
+
+      set({
+        feed: Array.from(mergedMap.values()),
+        feedHasMore: res.data.hasMore || false,
+        feedNextCursor: res.data.nextCursor || null
+      });
+      return { success: true };
+    } catch (error) {
+      console.error("Error fetching more feed:", error);
+      return { success: false, message: error.response?.data?.message || "An error occurred" };
+    } finally {
+      set({ feedIsLoadingMore: false });
+    }
+  },
+
   fetchPublicFeed: async () => {
     set({ isLoading: true });
     try {
-      const res = await axiosInstance.get("/checkins/public");
-      const feedItems = res.data.data || res.data || [];
-      const processedFeed = Array.isArray(feedItems) ? feedItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : [];
-      set({ publicFeed: processedFeed });
+      const res = await axiosInstance.get("/checkins/public?limit=10");
+      const feedItems = res.data.data || [];
+      set({ 
+        publicFeed: feedItems, 
+        publicFeedHasMore: res.data.hasMore || false,
+        publicFeedNextCursor: res.data.nextCursor || null
+      });
       return { success: true };
     } catch (error) {
       console.error("Error fetching public feed:", error);
       return { success: false, message: error.response?.data?.message || "An error occurred" };
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  fetchMorePublicFeed: async () => {
+    const { publicFeedNextCursor, publicFeedHasMore, publicFeedIsLoadingMore, publicFeed } = get();
+    if (!publicFeedHasMore || publicFeedIsLoadingMore || !publicFeedNextCursor) return { success: true };
+
+    set({ publicFeedIsLoadingMore: true });
+    try {
+      const res = await axiosInstance.get(`/checkins/public?cursor=${publicFeedNextCursor}&limit=10`);
+      const newItems = res.data.data || [];
+      
+      const mergedMap = new Map();
+      publicFeed.forEach(item => {
+        const id = item.id || item._id || item.checkInId;
+        if (id) {
+          mergedMap.set(id, item);
+        } else {
+          mergedMap.set(item, item);
+        }
+      });
+
+      newItems.forEach(item => {
+        const id = item.id || item._id || item.checkInId;
+        if (id) {
+          const existing = mergedMap.get(id);
+          mergedMap.set(id, existing ? { ...existing, ...item } : item);
+        } else {
+          mergedMap.set(item, item);
+        }
+      });
+
+      set({
+        publicFeed: Array.from(mergedMap.values()),
+        publicFeedHasMore: res.data.hasMore || false,
+        publicFeedNextCursor: res.data.nextCursor || null
+      });
+      return { success: true };
+    } catch (error) {
+      console.error("Error fetching more public feed:", error);
+      return { success: false, message: error.response?.data?.message || "An error occurred" };
+    } finally {
+      set({ publicFeedIsLoadingMore: false });
     }
   },
 
@@ -142,9 +240,19 @@ export const usePartnershipStore = create((set) => ({
         await axiosInstance.post(`/checkins/approve/${checkInId}`);
       }
       
+      const matchesId = (item) => {
+        return (
+          (feedId && (item.id === feedId || item._id === feedId || item.checkInId === feedId)) ||
+          (checkInId && (item.id === checkInId || item._id === checkInId || item.checkInId === checkInId))
+        );
+      };
+
       set((state) => ({
         feed: state.feed.map((item) =>
-          item.id === feedId ? { ...item, approved: true } : item
+          matchesId(item) ? { ...item, approved: true } : item
+        ),
+        publicFeed: state.publicFeed.map((item) =>
+          matchesId(item) ? { ...item, approved: true } : item
         )
       }));
       return { success: true };
@@ -165,9 +273,13 @@ export const usePartnershipStore = create((set) => ({
   },
 
   sendReaction: async (checkInId, reactionType) => {
-    set((state) => ({
-      feed: state.feed.map((item) => {
-        if (item.id === checkInId || item.checkInId === checkInId) {
+    const matchesId = (item) => {
+      return item.id === checkInId || item._id === checkInId || item.checkInId === checkInId;
+    };
+
+    const updateReactions = (feedArray) =>
+      feedArray.map((item) => {
+        if (matchesId(item)) {
           const currentCount = item.reactions?.[reactionType] || 0;
           return {
             ...item,
@@ -178,7 +290,11 @@ export const usePartnershipStore = create((set) => ({
           };
         }
         return item;
-      }),
+      });
+
+    set((state) => ({
+      feed: updateReactions(state.feed),
+      publicFeed: updateReactions(state.publicFeed),
     }));
 
     try {
@@ -187,20 +303,24 @@ export const usePartnershipStore = create((set) => ({
     } catch (error) {
       console.error("Error sending reaction:", error);
       // Revert optimistic update
-      set((state) => ({
-        feed: state.feed.map((item) => {
-          if (item.id === checkInId || item.checkInId === checkInId) {
+      const revertReactions = (feedArray) =>
+        feedArray.map((item) => {
+          if (matchesId(item)) {
             const currentCount = item.reactions?.[reactionType] || 1;
             return {
               ...item,
               reactions: {
                 ...item.reactions,
-                [reactionType]: currentCount - 1,
+                [reactionType]: Math.max(0, currentCount - 1),
               },
             };
           }
           return item;
-        }),
+        });
+
+      set((state) => ({
+        feed: revertReactions(state.feed),
+        publicFeed: revertReactions(state.publicFeed),
       }));
       return { success: false, message: "Failed to send reaction" };
     }
@@ -211,17 +331,17 @@ export const usePartnershipStore = create((set) => ({
       const res = await axiosInstance.post(`/checkins/${checkInId}/comments`, { text });
       const updatedComments = res.data.data;
       
+      const matchesId = (item) => {
+        return item.id === checkInId || item._id === checkInId || item.checkInId === checkInId;
+      };
+
       set((state) => ({
-        feed: state.feed.map((item) => {
-          // Note: checkIn feed maps _id to id or checkInId sometimes, handle both
-          if (item.id === checkInId || item.checkInId === checkInId || item._id === checkInId) {
-            return {
-              ...item,
-              comments: updatedComments
-            };
-          }
-          return item;
-        })
+        feed: state.feed.map((item) =>
+          matchesId(item) ? { ...item, comments: updatedComments } : item
+        ),
+        publicFeed: state.publicFeed.map((item) =>
+          matchesId(item) ? { ...item, comments: updatedComments } : item
+        )
       }));
       return { success: true };
     } catch (error) {

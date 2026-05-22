@@ -3,6 +3,11 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { useGoalStore } from "../store/useGoalStore";
 import { usePartnershipStore } from "../store/usePartnershipStore";
+import Sidebar from "./Dashboard/Sidebar";
+import Header from "./Dashboard/Header";
+import NewGoalModal from "./Modals/NewGoalModal";
+import CheckInModal from "./Modals/CheckInModal";
+import { connectSocket, disconnectSocket } from '../lib/socket';
 
 const DashboardLayout = () => {
   const { authUser, logout, updateProfileSettings } = useAuthStore();
@@ -10,7 +15,11 @@ const DashboardLayout = () => {
 
   const {
     feed,
+    feedHasMore,
+    feedIsLoadingMore,
     publicFeed,
+    publicFeedHasMore,
+    publicFeedIsLoadingMore,
     leaderboard,
     approveCheckin,
     partner,
@@ -23,7 +32,9 @@ const DashboardLayout = () => {
     respondToInvite,
     fetchActivePartnership,
     fetchFeed,
+    fetchMoreFeed,
     fetchPublicFeed,
+    fetchMorePublicFeed,
     fetchLeaderboard,
     dissolvePartnership,
     sendNudge,
@@ -34,19 +45,19 @@ const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isNewGoalModalOpen, setIsNewGoalModalOpen] = useState(false);
 
-  // Sync state with authUser updates
-  useEffect(() => {
-    if (authUser) {
-      setSettingsTimezone(authUser.timezone || "UTC");
-      setSettingsBio(authUser.bio || "");
-      setSettingsCategories(authUser.categories || []);
-    }
-  }, [authUser]);
-
   // Navigation & View State
   const [settingsTimezone, setSettingsTimezone] = useState(authUser?.timezone || "UTC");
   const [settingsBio, setSettingsBio] = useState(authUser?.bio || "");
   const [settingsCategories, setSettingsCategories] = useState(authUser?.categories || []);
+
+  // Sync state with authUser updates using render-phase adjustment pattern (React recommended)
+  const [prevAuthUser, setPrevAuthUser] = useState(authUser);
+  if (authUser !== prevAuthUser) {
+    setPrevAuthUser(authUser);
+    setSettingsTimezone(authUser?.timezone || "UTC");
+    setSettingsBio(authUser?.bio || "");
+    setSettingsCategories(authUser?.categories || []);
+  }
 
   const activePartnersList = activePartners && activePartners.length > 0
     ? activePartners
@@ -58,7 +69,7 @@ const DashboardLayout = () => {
         id: p._id || "mock-id",
         partner: p,
         goalTitle: "Custom Goal",
-        progress: Math.floor(Math.random() * 50) + 30
+        progress: 45
       }));
     }
     if (Array.isArray(activePartnershipData)) {
@@ -143,6 +154,33 @@ const DashboardLayout = () => {
       setToastMessage("");
     }, 4000);
   };
+
+  useEffect(() => {
+    if (authUser?._id) {
+      const socket = connectSocket(authUser._id);
+
+      socket.on('nudge_received', (data) => {
+        showToast(`${data.senderName} sent you a Fire Nudge! ⚡`, 'success');
+      });
+
+      socket.on('checkin_approved', () => {
+        showToast('Your check-in was approved by your partner! 🤝', 'success');
+        fetchFeed();
+      });
+
+      socket.on('comment_added', () => {
+        fetchFeed();
+      });
+
+      socket.on('reaction_added', () => {
+        fetchFeed();
+      });
+
+      return () => {
+        disconnectSocket();
+      };
+    }
+  }, [authUser?._id, fetchFeed]);
 
   // Handle Milestone toggling with index mapped to backend
   const handleToggleMilestone = async (goalId, milestoneIndex) => {
@@ -409,67 +447,13 @@ const DashboardLayout = () => {
       )}
 
       {/* Sidebar - Desktop */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-[#f8fafc] border-r border-gray-200 transform transition-transform duration-300 lg:translate-x-0 lg:static lg:inset-0 flex flex-col justify-between ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}>
-        <div>
-          <div className="p-6">
-            <h1 className="text-2xl font-bold text-[#00685f] tracking-tight">MUTUAL</h1>
-            <p className="text-xs text-gray-500 mt-1 font-medium">Progress as a Path</p>
-          </div>
-          <nav className="px-4 space-y-1 mt-4">
-            <Link
-              to="/dashboard"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-sm transition-colors ${currentView === "dashboard" ? "bg-[#00685f] text-white" : "text-gray-500 hover:bg-gray-100"}`}
-            >
-              <span className="text-lg">📊</span> Dashboard
-            </Link>
-            <Link
-              to="/goals"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-sm transition-colors ${currentView === "goals" ? "bg-[#00685f] text-white" : "text-gray-500 hover:bg-gray-100"}`}
-            >
-              <span className="text-lg">🎯</span> My Goals
-            </Link>
-            <Link
-              to="/partners"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-sm transition-colors ${currentView === "partners" ? "bg-[#00685f] text-white" : "text-gray-500 hover:bg-gray-100"}`}
-            >
-              <span className="text-lg">🤝</span> Partners
-            </Link>
-            <Link
-              to="/community"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-sm transition-colors ${currentView === "community" ? "bg-[#00685f] text-white" : "text-gray-500 hover:bg-gray-100"}`}
-            >
-              <span className="text-lg">💬</span> Community
-            </Link>
-            <Link
-              to="/profile"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-sm transition-colors ${currentView === "profile" ? "bg-[#00685f] text-white" : "text-gray-500 hover:bg-gray-100"}`}
-            >
-              <span className="text-lg">👤</span> Profile
-            </Link>
-            <Link
-              to="/settings"
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-sm transition-colors ${currentView === "settings" ? "bg-[#00685f] text-white" : "text-gray-500 hover:bg-gray-100"}`}
-            >
-              <span className="text-lg">⚙️</span> Settings
-            </Link>
-          </nav>
-        </div>
-        <div className="p-6 space-y-4">
-          <button
-            onClick={() => setIsNewGoalModalOpen(true)}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg font-medium text-sm text-white bg-[#00685f] hover:bg-[#004d46] transition-colors shadow-sm"
-          >
-            <span className="text-lg">✨</span> New Goal
-          </button>
-          <button
-            onClick={logout}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg font-medium text-sm text-red-600 bg-red-50 border border-red-200/40 hover:bg-red-100 hover:text-red-700 transition-colors duration-200 shadow-xs"
-          >
-            <span className="text-lg">🚪</span> Sign Out
-          </button>
-        </div>
-      </aside>
+      <Sidebar
+        currentView={currentView}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        setIsNewGoalModalOpen={setIsNewGoalModalOpen}
+        logout={logout}
+      />
 
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col h-screen overflow-y-auto w-full lg:pl-0 bg-white">
@@ -488,79 +472,20 @@ const DashboardLayout = () => {
         <main className="flex-1 max-w-[1200px] w-full mx-auto p-6 md:p-10">
 
           {/* Header */}
-          <header className="relative bg-gradient-to-r from-teal-50/30 via-white to-slate-50 border border-slate-200/80 rounded-2xl p-6 md:p-8 mb-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 overflow-hidden">
-            {/* Decorative radial blur for a subtle premium glass glow */}
-            <div className="absolute top-0 right-0 w-48 h-48 bg-[#00685f]/5 rounded-full blur-3xl -z-10 pointer-events-none transform translate-x-12 -translate-y-12"></div>
-            
-            <div className="flex items-center gap-4">
-              <div className="hidden sm:flex w-14 h-14 rounded-xl bg-white border border-slate-200 shadow-sm items-center justify-center text-2xl">
-                {headerContent.icon}
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="bg-[#e6f4f2] text-[#00685f] text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-widest border border-[#00685f]/15">
-                    {headerContent.badge}
-                  </span>
-                  {currentView === "dashboard" && authUser?.currentStreak > 0 && (
-                    <span className="bg-orange-50 text-[#c26d2e] text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider border border-orange-100 flex items-center gap-1 animate-pulse">
-                      🔥 {authUser.currentStreak} day streak
-                    </span>
-                  )}
-                </div>
-                <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight">
-                  {headerContent.title}
-                </h2>
-                <p className="text-gray-500 text-sm mt-1.5 font-medium leading-relaxed max-w-2xl">
-                  {headerContent.description}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4 self-end md:self-auto">
-              {currentView === "dashboard" && (
-                <div className="hidden lg:flex flex-col items-end border-l border-slate-200 pl-6 h-10 justify-center">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Goals</span>
-                  <span className="text-lg font-extrabold text-[#00685f] leading-none mt-1">
-                    {goals.filter(g => g.status === 'active').length} Active
-                  </span>
-                </div>
-              )}
-              {currentView === "goals" && (
-                <button
-                  onClick={() => setIsNewGoalModalOpen(true)}
-                  className="bg-[#00685f] hover:bg-[#004d46] text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-sm border border-[#00685f]/10"
-                >
-                  + Add New Goal
-                </button>
-              )}
-              {currentView === "partners" && activePactsList.length > 0 && (
-                <div className="hidden lg:flex flex-col items-end border-l border-slate-200 pl-6 h-10 justify-center">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Pacts</span>
-                  <span className="text-lg font-extrabold text-[#00685f] leading-none mt-1">
-                    {activePactsList.length} Active
-                  </span>
-                </div>
-              )}
-              
-              <div className="flex items-center gap-3">
-                <button className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-xs text-slate-500 hover:text-slate-700 transition-colors hover:border-slate-300">
-                  🔔
-                </button>
-                <Link to="/settings" className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-xs text-slate-500 hover:text-slate-700 transition-colors hover:border-slate-300">
-                  ⚙️
-                </Link>
-                <div className="w-10 h-10 rounded-xl bg-gray-100 border border-slate-200 shadow-sm overflow-hidden shrink-0">
-                  <img src={`https://ui-avatars.com/api/?name=${authUser?.name || 'User'}&background=e6f4f2&color=00685f`} alt="Avatar" className="w-full h-full object-cover" />
-                </div>
-              </div>
-            </div>
-          </header>
+          <Header
+            headerContent={headerContent}
+            currentView={currentView}
+            authUser={authUser}
+            goals={goals}
+            activePactsList={activePactsList}
+            setIsNewGoalModalOpen={setIsNewGoalModalOpen}
+          />
 
           <Outlet context={{
             authUser, logout, updateProfileSettings,
             goals, createGoal, toggleMilestone, fetchGoals, submitCheckIn, isGoalsLoading, checkInHistory, fetchCheckInHistory,
-            feed, publicFeed, leaderboard, approveCheckin, partner, activePartners, activePartnershipData,
-            searchUser, sendInvite, partnerships, fetchPartnerships, respondToInvite, fetchActivePartnership, fetchFeed, fetchPublicFeed, fetchLeaderboard, dissolvePartnership, sendReaction, addComment,
+            feed, feedHasMore, feedIsLoadingMore, publicFeed, publicFeedHasMore, publicFeedIsLoadingMore, leaderboard, approveCheckin, partner, activePartners, activePartnershipData,
+            searchUser, sendInvite, partnerships, fetchPartnerships, respondToInvite, fetchActivePartnership, fetchFeed, fetchMoreFeed, fetchPublicFeed, fetchMorePublicFeed, fetchLeaderboard, dissolvePartnership, sendReaction, addComment,
             sidebarOpen, setSidebarOpen,
             isNewGoalModalOpen, setIsNewGoalModalOpen,
             activePartnersList, activePactsList,
@@ -575,226 +500,50 @@ const DashboardLayout = () => {
       </div>
 
       {/* NEW GOAL MODAL (Interactive & Dynamic Milestone Builder) */}
-      {isNewGoalModalOpen && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-8 shadow-2xl relative my-8">
-            <button
-              onClick={() => setIsNewGoalModalOpen(false)}
-              className="absolute right-6 top-6 text-2xl text-gray-400 hover:text-gray-600 hover:rotate-90 transition-all"
-            >✕</button>
-            <h3 className="text-2xl font-bold text-gray-900 tracking-tight mb-6">Initialize New Cycle</h3>
-
-            <form onSubmit={handleCreateGoalSubmit} className="space-y-5">
-              {goalError && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg font-bold">
-                  ⚠️ {goalError}
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Goal Title</label>
-                <input
-                  type="text"
-                  value={goalTitle}
-                  onChange={(e) => setGoalTitle(e.target.value)}
-                  placeholder="e.g., Leetcode mastery"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00685f]/20 focus:border-[#00685f] text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Description</label>
-                <textarea
-                  value={goalDescription}
-                  onChange={(e) => setGoalDescription(e.target.value)}
-                  placeholder="Briefly summarize your target..."
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00685f]/20 focus:border-[#00685f] text-sm h-20 resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Category</label>
-                  <select
-                    value={goalCategory}
-                    onChange={(e) => setGoalCategory(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#00685f]/20 focus:border-[#00685f] text-sm"
-                  >
-                    <option>study</option>
-                    <option>fitness</option>
-                    <option>career</option>
-                    <option>habit</option>
-                    <option>other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Frequency</label>
-                  <select
-                    value={goalFrequency}
-                    onChange={(e) => setGoalFrequency(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#00685f]/20 focus:border-[#00685f] text-sm"
-                  >
-                    <option value="daily">Daily</option>
-                    <option value="every2days">Every 2 Days</option>
-                    <option value="weekly">Weekly</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Target Deadline</label>
-                <input
-                  type="date"
-                  value={goalDeadline}
-                  onChange={(e) => setGoalDeadline(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00685f]/20 focus:border-[#00685f] text-sm"
-                  required
-                />
-              </div>
-
-              {/* Dynamic Milestones Section */}
-              <div className="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500">Partition Milestones</label>
-                  <button
-                    type="button"
-                    onClick={handleAddMilestoneField}
-                    className="text-[#00685f] font-bold text-[10px] uppercase tracking-wider hover:underline flex items-center gap-1"
-                  >
-                    <span className="text-lg leading-none">+</span> Add milestone
-                  </button>
-                </div>
-
-                <div className="space-y-2 max-h-36 overflow-y-auto pr-2">
-                  {goalMilestones.map((milestone, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold shrink-0">{idx + 1}</div>
-                      <input
-                        type="text"
-                        value={milestone}
-                        onChange={(e) => handleMilestoneFieldChange(idx, e.target.value)}
-                        placeholder="e.g. Read Chapter 1"
-                        className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-[#00685f] text-sm"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveMilestoneField(idx)}
-                        disabled={goalMilestones.length === 1}
-                        className={`p-2 rounded-lg transition-colors ${goalMilestones.length === 1
-                            ? "text-gray-300 cursor-not-allowed"
-                            : "text-red-400 hover:bg-red-50 hover:text-red-600"
-                          }`}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-[#00685f] hover:bg-[#004d46] text-white py-4 font-bold text-sm uppercase tracking-widest rounded-xl transition-all shadow-md mt-4"
-              >
-                Provision Goal
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
+      <NewGoalModal
+        isOpen={isNewGoalModalOpen}
+        onClose={() => setIsNewGoalModalOpen(false)}
+        goalTitle={goalTitle}
+        setGoalTitle={setGoalTitle}
+        goalCategory={goalCategory}
+        setGoalCategory={setGoalCategory}
+        goalDescription={goalDescription}
+        setGoalDescription={setGoalDescription}
+        goalDeadline={goalDeadline}
+        setGoalDeadline={setGoalDeadline}
+        goalFrequency={goalFrequency}
+        setGoalFrequency={setGoalFrequency}
+        goalMilestones={goalMilestones}
+        goalError={goalError}
+        handleCreateGoalSubmit={handleCreateGoalSubmit}
+        handleAddMilestoneField={handleAddMilestoneField}
+        handleMilestoneFieldChange={handleMilestoneFieldChange}
+        handleRemoveMilestoneField={handleRemoveMilestoneField}
+      />
 
       {/* CHECK-IN SUBMISSION MODAL */}
-      {isCheckInModalOpen && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl relative">
-            <button
-              onClick={() => {
-                setIsCheckInModalOpen(false);
-                setCheckInNote("");
-                setCheckInStake("");
-                setCheckInProgress(10);
-                setCheckInError("");
-              }}
-              className="absolute right-6 top-6 text-2xl text-gray-400 hover:text-gray-600 hover:rotate-90 transition-all"
-            >✕</button>
-
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#00685f] mb-2 block">Performance Verification</span>
-            <h3 className="text-2xl font-bold text-gray-900 tracking-tight mb-6">Submit Check-In Proof</h3>
-
-            <form onSubmit={handleCreateCheckInSubmit} className="space-y-4">
-              {checkInError && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg font-bold">
-                  ⚠️ {checkInError}
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Select Active Goal</label>
-                <select
-                  value={checkInGoalId}
-                  onChange={(e) => setCheckInGoalId(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#00685f]/20 focus:border-[#00685f] text-sm"
-                >
-                  {goals.filter(g => g.status === 'active').map(goal => (
-                    <option key={goal._id} value={goal._id}>
-                      {goal.title} ({goal.category})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Check-in Note / Proof</label>
-                <textarea
-                  value={checkInNote}
-                  onChange={(e) => setCheckInNote(e.target.value)}
-                  placeholder="What did you complete today? Be specific..."
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00685f]/20 focus:border-[#00685f] text-sm h-24 resize-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Financial/Social Stake (Optional)</label>
-                <input
-                  type="text"
-                  value={checkInStake}
-                  onChange={(e) => setCheckInStake(e.target.value)}
-                  placeholder="e.g. $10 to charity if unverified"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00685f]/20 focus:border-[#00685f] text-sm"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500">Self-Assessed Progress Update</label>
-                  <span className="text-xs font-bold text-gray-700">+{checkInProgress}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="5"
-                  max="100"
-                  step="5"
-                  value={checkInProgress}
-                  onChange={(e) => setCheckInProgress(Number(e.target.value))}
-                  className="w-full accent-[#00685f]"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmittingCheckIn}
-                className="w-full bg-[#00685f] hover:bg-[#004d46] text-white py-3.5 font-bold text-sm uppercase tracking-widest rounded-xl transition-all shadow-md mt-4 disabled:opacity-50"
-              >
-                {isSubmittingCheckIn ? "Logging Progress..." : "Commit Check-in Proof"}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      <CheckInModal
+        isOpen={isCheckInModalOpen}
+        onClose={() => {
+          setIsCheckInModalOpen(false);
+          setCheckInNote("");
+          setCheckInStake("");
+          setCheckInProgress(10);
+          setCheckInError("");
+        }}
+        goals={goals}
+        checkInGoalId={checkInGoalId}
+        setCheckInGoalId={setCheckInGoalId}
+        checkInNote={checkInNote}
+        setCheckInNote={setCheckInNote}
+        checkInStake={checkInStake}
+        setCheckInStake={setCheckInStake}
+        checkInProgress={checkInProgress}
+        setCheckInProgress={setCheckInProgress}
+        checkInError={checkInError}
+        isSubmittingCheckIn={isSubmittingCheckIn}
+        handleCreateCheckInSubmit={handleCreateCheckInSubmit}
+      />
     </div>
   );
 };

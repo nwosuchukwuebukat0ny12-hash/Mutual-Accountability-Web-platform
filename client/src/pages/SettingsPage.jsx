@@ -96,6 +96,30 @@ const SettingsPage = () => {
               Cancel
             </button>
           </div>
+
+          <div className="pt-8 mt-8 border-t border-red-100">
+            <h3 className="text-sm font-bold text-red-600 uppercase tracking-wider mb-2">Danger Zone</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Once you delete your account, there is no going back. Please be certain.
+            </p>
+            <button
+              onClick={async () => {
+                if (window.confirm("Are you absolutely sure you want to delete your account? This action cannot be undone.")) {
+                  const { useAuthStore } = await import("../store/useAuthStore");
+                  const res = await useAuthStore.getState().deleteAccount();
+                  if (res.success) {
+                    showToast("Account deleted successfully");
+                    navigate("/login");
+                  } else {
+                    showToast(res.message || "Failed to delete account", "error");
+                  }
+                }
+              }}
+              className="px-6 border border-red-200 hover:bg-red-50 text-red-600 py-3 font-bold text-sm uppercase tracking-widest rounded-xl transition-all"
+            >
+              Delete Account
+            </button>
+          </div>
         </div>
       </div>
     </>
