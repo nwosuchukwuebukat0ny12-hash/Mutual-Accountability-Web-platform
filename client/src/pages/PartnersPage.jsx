@@ -10,7 +10,7 @@ const PartnersPage = () => {
     goalTitle, setGoalTitle, goalCategory, setGoalCategory, goalDescription, setGoalDescription, goalDeadline, setGoalDeadline, goalFrequency, setGoalFrequency, goalMilestones, setGoalMilestones, goalError, setGoalError,
     searchUsername, setSearchUsername, searchResult, setSearchResult, searchError, setSearchError, isSearching, setIsSearching, inviteSent, setInviteSent, inviteGoalId, setInviteGoalId,
     isCheckInModalOpen, setIsCheckInModalOpen, checkInGoalId, setCheckInGoalId, checkInNote, setCheckInNote, checkInStake, setCheckInStake, checkInProgress, setCheckInProgress, checkInError, setCheckInError, isSubmittingCheckIn, setIsSubmittingCheckIn,
-    showToast, handleToggleMilestone, handleApproveCheckin, handleAddMilestoneField, handleMilestoneFieldChange, handleRemoveMilestoneField, handleCreateGoalSubmit, handleSearchPartnerSubmit, handleInvitePartnerSubmit, handleCreateCheckInSubmit,
+    showToast, handleToggleMilestone, handleApproveCheckin, handleAddMilestoneField, handleMilestoneFieldChange, handleRemoveMilestoneField, handleCreateGoalSubmit, handleSearchPartnerSubmit, handleInvitePartnerSubmit, handleCreateCheckInSubmit, handleSendNudge,
     settingsTimezone, setSettingsTimezone, settingsBio, setSettingsBio, settingsCategories, setSettingsCategories, updateProfileSettings
   } = context;
 
@@ -182,7 +182,7 @@ const PartnersPage = () => {
                       <div className="flex items-center gap-3 mt-2 pt-2 border-t border-gray-50">
                         <button
                           type="button"
-                          onClick={() => showToast(`Fire Nudge sent to ${p.name}! ⚡`)}
+                          onClick={() => handleSendNudge(p._id)}
                           className="flex-1 py-2.5 bg-[#fff7ed] hover:bg-[#ffedd5] text-[#ea580c] text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 border border-orange-100 shadow-sm active:scale-95"
                         >
                           <span>⚡</span> Send Fire Nudge

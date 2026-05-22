@@ -64,7 +64,7 @@ export const useAuthStore = create((set) => ({
     set({ isUpdatingProfile: true });
     try {
       const res = await axiosInstance.patch("/auth/profile", data);
-      set({ authUser: res.data });
+      set({ authUser: res.data.data.user });
       return { success: true };
     } catch (error) {
       console.error("Error updating profile settings:", error);

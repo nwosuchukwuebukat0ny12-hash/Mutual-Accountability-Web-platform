@@ -9,6 +9,8 @@ export const usePartnershipStore = create((set) => ({
   partner: null,
   activePartnershipData: null,
   isLoading: false,
+  publicFeed: [],
+  leaderboard: [],
 
   fetchActivePartnership: async () => {
     set({ isLoading: true });
@@ -42,6 +44,34 @@ export const usePartnershipStore = create((set) => ({
       return { success: false, message: error.response?.data?.message || "An error occurred" };
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  fetchPublicFeed: async () => {
+    set({ isLoading: true });
+    try {
+      const res = await axiosInstance.get("/checkins/public");
+      const feedItems = res.data.data || res.data || [];
+      const processedFeed = Array.isArray(feedItems) ? feedItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : [];
+      set({ publicFeed: processedFeed });
+      return { success: true };
+    } catch (error) {
+      console.error("Error fetching public feed:", error);
+      return { success: false, message: error.response?.data?.message || "An error occurred" };
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  fetchLeaderboard: async () => {
+    try {
+      const res = await axiosInstance.get("/users/leaderboard");
+      const list = res.data.data || res.data || [];
+      set({ leaderboard: Array.isArray(list) ? list : [] });
+      return { success: true };
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
+      return { success: false, message: error.response?.data?.message || "An error occurred" };
     }
   },
 
@@ -81,9 +111,12 @@ export const usePartnershipStore = create((set) => ({
     try {
       const res = await axiosInstance.get(`/partnerships/search?username=${username}`);
       const partnerData = res.data.data || res.data;
+      const results = partnerData ? [partnerData] : [];
+      set({ searchResults: results });
       return { success: true, user: partnerData };
     } catch (error) {
       console.error("Error in searchUser:", error);
+      set({ searchResults: [] });
       return { success: false, message: error.response?.data?.message || "User not found. Try searching 'sarah', 'fawaz', 'nabila', or 'mufeeda'." };
     } finally {
       set({ isLoading: false });
@@ -121,10 +154,20 @@ export const usePartnershipStore = create((set) => ({
     }
   },
 
+  sendNudge: async (recipientId) => {
+    try {
+      await axiosInstance.post("/notifications/nudge", { recipientId });
+      return { success: true };
+    } catch (error) {
+      console.error("Error sending nudge:", error);
+      return { success: false, message: error.response?.data?.message || "Failed to send nudge" };
+    }
+  },
+
   sendReaction: async (checkInId, reactionType) => {
     set((state) => ({
       feed: state.feed.map((item) => {
-        if (item._id === checkInId) {
+        if (item.id === checkInId || item.checkInId === checkInId) {
           const currentCount = item.reactions?.[reactionType] || 0;
           return {
             ...item,
@@ -139,26 +182,51 @@ export const usePartnershipStore = create((set) => ({
     }));
 
     try {
-      await axiosInstance.post(`/feed/${checkInId}/reactions`, { type: reactionType });
+      await axiosInstance.post(`/checkins/${checkInId}/reactions`, { type: reactionType });
       return { success: true };
     } catch (error) {
       console.error("Error sending reaction:", error);
+      // Revert optimistic update
       set((state) => ({
         feed: state.feed.map((item) => {
-          if (item._id === checkInId) {
-            const currentCount = item.reactions?.[reactionType] || 0;
+          if (item.id === checkInId || item.checkInId === checkInId) {
+            const currentCount = item.reactions?.[reactionType] || 1;
             return {
               ...item,
               reactions: {
                 ...item.reactions,
-                [reactionType]: Math.max(0, currentCount - 1),
+                [reactionType]: currentCount - 1,
               },
             };
           }
           return item;
         }),
       }));
-      return { success: false, message: error.response?.data?.message || "Failed to send reaction" };
+      return { success: false, message: "Failed to send reaction" };
+    }
+  },
+
+  addComment: async (checkInId, text) => {
+    try {
+      const res = await axiosInstance.post(`/checkins/${checkInId}/comments`, { text });
+      const updatedComments = res.data.data;
+      
+      set((state) => ({
+        feed: state.feed.map((item) => {
+          // Note: checkIn feed maps _id to id or checkInId sometimes, handle both
+          if (item.id === checkInId || item.checkInId === checkInId || item._id === checkInId) {
+            return {
+              ...item,
+              comments: updatedComments
+            };
+          }
+          return item;
+        })
+      }));
+      return { success: true };
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      return { success: false, message: "Failed to add comment" };
     }
   },
 

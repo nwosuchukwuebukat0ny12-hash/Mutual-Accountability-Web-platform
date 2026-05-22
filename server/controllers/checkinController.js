@@ -263,7 +263,9 @@ const getCheckInFeed = async (req, res) => {
       timestamp: new Date(c.createdAt).toLocaleDateString(),
       note: c.note,
       approved: c.status === 'approved',
-      isBadge: false
+      isBadge: false,
+      comments: c.comments || [],
+      reactions: c.reactions || { fire: 0, clap: 0, muscle: 0 }
     }));
 
     res.status(200).json({ success: true, data: feedItems });
@@ -273,8 +275,124 @@ const getCheckInFeed = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get check-in history for a specific goal
+ * @route   GET /api/checkins/history/:goalId
+ * @access  Private
+ */
+const getCheckInHistory = async (req, res) => {
+  try {
+    const { goalId } = req.params;
+    
+    // Ensure the goal belongs to the user or their active partner
+    // For simplicity right now, just returning the check-ins for this goal
+    const checkIns = await CheckIn.find({ goal: goalId })
+      .sort({ createdAt: 1 }); // Chronological order
+      
+    res.status(200).json({ success: true, data: checkIns });
+  } catch (error) {
+    console.error('Get Checkin History Error:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving history' });
+  }
+};
+
+/**
+ * @desc    Add a comment to a check-in
+ * @route   POST /api/checkins/:id/comments
+ * @access  Private
+ */
+const addComment = async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ success: false, message: 'Comment text is required' });
+
+    const checkIn = await CheckIn.findById(req.params.id);
+    if (!checkIn) return res.status(404).json({ success: false, message: 'Check-in not found' });
+
+    const comment = { user: req.user._id, text };
+    checkIn.comments.push(comment);
+    await checkIn.save();
+
+    // Re-fetch to populate user
+    const updatedCheckIn = await CheckIn.findById(req.params.id).populate('comments.user', 'name username');
+
+    res.status(201).json({ success: true, data: updatedCheckIn.comments });
+  } catch (error) {
+    console.error('Add Comment Error:', error);
+    res.status(500).json({ success: false, message: 'Server error adding comment' });
+  }
+};
+
+/**
+ * @desc    Add a reaction to a check-in
+ * @route   POST /api/checkins/:id/reactions
+ * @access  Private
+ */
+const addReaction = async (req, res) => {
+  try {
+    const { type } = req.body; // 'fire', 'clap', 'muscle'
+    if (!['fire', 'clap', 'muscle'].includes(type)) {
+      return res.status(400).json({ success: false, message: 'Invalid reaction type' });
+    }
+
+    const checkIn = await CheckIn.findById(req.params.id);
+    if (!checkIn) return res.status(404).json({ success: false, message: 'Check-in not found' });
+
+    if (!checkIn.reactions) checkIn.reactions = { fire: 0, clap: 0, muscle: 0 };
+    checkIn.reactions[type] += 1;
+    await checkIn.save();
+
+    res.status(200).json({ success: true, data: checkIn.reactions });
+  } catch (error) {
+    console.error('Add Reaction Error:', error);
+    res.status(500).json({ success: false, message: 'Server error adding reaction' });
+  }
+};
+
+/**
+ * @desc    Get public check-ins for community feed
+ * @route   GET /api/checkins/public
+ * @access  Private
+ */
+const getPublicCheckIns = async (req, res) => {
+  try {
+    const checkIns = await CheckIn.find({ status: 'approved' })
+      .sort({ createdAt: -1 })
+      .limit(30)
+      .populate('user', 'name username')
+      .populate({
+        path: 'goal',
+        select: 'title category isPublic',
+        match: { isPublic: true }
+      });
+
+    const publicCheckIns = checkIns.filter(c => c.goal !== null);
+
+    const feedItems = publicCheckIns.map(c => ({
+      id: c._id.toString(),
+      checkInId: c._id.toString(),
+      userName: c.user?.name || 'User',
+      username: c.user?.username || 'user',
+      goalTitle: c.goal?.title || 'Goal',
+      timestamp: new Date(c.createdAt).toLocaleDateString(),
+      note: c.note,
+      comments: c.comments || [],
+      reactions: c.reactions || { fire: 0, clap: 0, muscle: 0 }
+    }));
+
+    res.status(200).json({ success: true, data: feedItems });
+  } catch (error) {
+    console.error('Get Public Checkins Error:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving public checkins' });
+  }
+};
+
 module.exports = {
   submitCheckIn,
   approveCheckIn,
   getCheckInFeed,
+  getCheckInHistory,
+  addComment,
+  addReaction,
+  getPublicCheckIns,
 };

@@ -3,7 +3,7 @@ import { useOutletContext } from "react-router-dom";
 const GoalsPage = () => {
   const context = useOutletContext();
   const {
-    authUser, goals, activePartnersList, setIsNewGoalModalOpen,
+    authUser, goals, activePartnersList, setIsNewGoalModalOpen, checkInHistory,
     handleToggleMilestone, getDaysLeft
   } = context;
 
@@ -54,26 +54,36 @@ const GoalsPage = () => {
                     <div className="mb-6">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-2">30-Day Consistency</span>
                       <div className="grid grid-cols-10 gap-1">
-                        {Array.from({ length: 30 }).map((_, boxIdx) => {
-                          const rand = (goal._id.charCodeAt(0) + boxIdx) % 10;
+                        {Array.from({ length: 30 }).map((_, i) => {
+                          const d = new Date();
+                          d.setDate(d.getDate() - (29 - i));
+                          const dateStr = d.toISOString().split('T')[0];
+                          const history = checkInHistory[goal._id] || [];
+                          const checkIn = history.find(c => c.createdAt.startsWith(dateStr));
+
                           let statusClass = "bg-[#e2e8f0]";
-                          let tooltipMsg = "No check-in";
-                          if (boxIdx < 28) {
-                            if (rand > 2) {
+                          let tooltipMsg = `No check-in (${dateStr})`;
+
+                          if (checkIn) {
+                            if (checkIn.status === 'approved') {
                               statusClass = "bg-[#10b981]";
-                              tooltipMsg = "Verified check-in!";
-                            } else if (rand === 2) {
-                              statusClass = "bg-[#f97316]";
-                              tooltipMsg = "Pending partner approval";
+                              tooltipMsg = `Verified check-in! (${dateStr})`;
                             } else {
-                              statusClass = "bg-[#ef4444]";
-                              tooltipMsg = "Missed check-in";
+                              statusClass = "bg-[#f97316]";
+                              tooltipMsg = `Pending partner approval (${dateStr})`;
                             }
+                          } else if (new Date(dateStr) < new Date(goal.createdAt).setHours(0,0,0,0)) {
+                            statusClass = "bg-[#e2e8f0]";
+                            tooltipMsg = `Before goal creation (${dateStr})`;
+                          } else if (new Date(dateStr) < new Date().setHours(0,0,0,0)) {
+                            statusClass = "bg-[#ef4444]";
+                            tooltipMsg = `Missed check-in (${dateStr})`;
                           }
+
                           return (
                             <div
-                              key={boxIdx}
-                              className={`w-full aspect-square rounded-sm ${statusClass} cursor-pointer hover:opacity-80 transition-opacity relative group`}
+                              key={i}
+                              className={`w-full pt-[100%] rounded-sm ${statusClass} cursor-pointer hover:opacity-80 transition-opacity relative group`}
                             >
                               <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-max max-w-[120px] bg-gray-900 text-white text-[10px] py-1 px-2 rounded z-20 pointer-events-none">
                                 {tooltipMsg}

@@ -106,4 +106,32 @@ const getMe = async (req, res) => {
     }
 };
 
-module.exports = { register, login, logout, getMe };
+const updateProfile = async (req, res) => {
+    try {
+        const { timezone, bio, categories } = req.body;
+        
+        // Find user and update
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        
+        if (timezone) user.timezone = timezone;
+        if (bio !== undefined) user.bio = bio;
+        if (categories) user.categories = categories;
+        
+        await user.save();
+        
+        const userResponse = user.toObject();
+        delete userResponse.passwordHash;
+        
+        res.status(200).json({
+            success: true,
+            data: { user: userResponse }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+module.exports = { register, login, logout, getMe, updateProfile };

@@ -6,10 +6,12 @@ import { usePartnershipStore } from "../store/usePartnershipStore";
 
 const DashboardLayout = () => {
   const { authUser, logout, updateProfileSettings } = useAuthStore();
-  const { goals, createGoal, toggleMilestone, fetchGoals, submitCheckIn, isLoading: isGoalsLoading } = useGoalStore();
+  const { goals, createGoal, toggleMilestone, fetchGoals, submitCheckIn, isLoading: isGoalsLoading, checkInHistory, fetchCheckInHistory } = useGoalStore();
 
   const {
     feed,
+    publicFeed,
+    leaderboard,
     approveCheckin,
     partner,
     activePartners,
@@ -21,7 +23,12 @@ const DashboardLayout = () => {
     respondToInvite,
     fetchActivePartnership,
     fetchFeed,
-    dissolvePartnership
+    fetchPublicFeed,
+    fetchLeaderboard,
+    dissolvePartnership,
+    sendNudge,
+    sendReaction,
+    addComment
   } = usePartnershipStore();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -115,7 +122,19 @@ const DashboardLayout = () => {
     fetchPartnerships();
     fetchActivePartnership();
     fetchFeed();
-  }, [fetchGoals, fetchPartnerships, fetchActivePartnership, fetchFeed]);
+    fetchPublicFeed();
+    fetchLeaderboard();
+  }, [fetchGoals, fetchPartnerships, fetchActivePartnership, fetchFeed, fetchPublicFeed, fetchLeaderboard]);
+
+  useEffect(() => {
+    if (goals.length > 0) {
+      goals.forEach(goal => {
+        if (goal.status === 'active' && !checkInHistory[goal._id]) {
+          fetchCheckInHistory(goal._id);
+        }
+      });
+    }
+  }, [goals, checkInHistory, fetchCheckInHistory]);
 
   const showToast = (message, type = "success") => {
     setToastMessage(message);
@@ -142,6 +161,15 @@ const DashboardLayout = () => {
       showToast("Partner check-in approved! Momentum maintained. 🤝");
     } else {
       showToast(res.message || "Failed to approve check-in", "error");
+    }
+  };
+
+  const handleSendNudge = async (partnerId) => {
+    const res = await sendNudge(partnerId);
+    if (res.success) {
+      showToast("Fire Nudge sent! ⚡", "success");
+    } else {
+      showToast(res.message, "error");
     }
   };
 
@@ -530,16 +558,16 @@ const DashboardLayout = () => {
 
           <Outlet context={{
             authUser, logout, updateProfileSettings,
-            goals, createGoal, toggleMilestone, fetchGoals, submitCheckIn, isGoalsLoading,
-            feed, approveCheckin, partner, activePartners, activePartnershipData,
-            searchUser, sendInvite, partnerships, fetchPartnerships, respondToInvite, fetchActivePartnership, fetchFeed, dissolvePartnership,
+            goals, createGoal, toggleMilestone, fetchGoals, submitCheckIn, isGoalsLoading, checkInHistory, fetchCheckInHistory,
+            feed, publicFeed, leaderboard, approveCheckin, partner, activePartners, activePartnershipData,
+            searchUser, sendInvite, partnerships, fetchPartnerships, respondToInvite, fetchActivePartnership, fetchFeed, fetchPublicFeed, fetchLeaderboard, dissolvePartnership, sendReaction, addComment,
             sidebarOpen, setSidebarOpen,
             isNewGoalModalOpen, setIsNewGoalModalOpen,
             activePartnersList, activePactsList,
             goalTitle, setGoalTitle, goalCategory, setGoalCategory, goalDescription, setGoalDescription, goalDeadline, setGoalDeadline, goalFrequency, setGoalFrequency, goalMilestones, setGoalMilestones, goalError, setGoalError,
             searchUsername, setSearchUsername, searchResult, setSearchResult, searchError, setSearchError, isSearching, setIsSearching, inviteSent, setInviteSent, inviteGoalId, setInviteGoalId,
             isCheckInModalOpen, setIsCheckInModalOpen, checkInGoalId, setCheckInGoalId, checkInNote, setCheckInNote, checkInStake, setCheckInStake, checkInProgress, setCheckInProgress, checkInError, setCheckInError, isSubmittingCheckIn, setIsSubmittingCheckIn,
-            showToast, handleToggleMilestone, handleApproveCheckin, handleAddMilestoneField, handleMilestoneFieldChange, handleRemoveMilestoneField, handleCreateGoalSubmit, handleSearchPartnerSubmit, handleInvitePartnerSubmit, handleCreateCheckInSubmit,
+            showToast, handleToggleMilestone, handleApproveCheckin, handleAddMilestoneField, handleMilestoneFieldChange, handleRemoveMilestoneField, handleCreateGoalSubmit, handleSearchPartnerSubmit, handleInvitePartnerSubmit, handleCreateCheckInSubmit, handleSendNudge,
             pendingMilestonesCount, hasUncheckedActiveGoal, getDaysLeft, incomingPendingInvites,
             settingsTimezone, setSettingsTimezone, settingsBio, setSettingsBio, settingsCategories, setSettingsCategories
           }} />

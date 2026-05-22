@@ -26,10 +26,11 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/goals', require('./routes/goal.routes'));
 app.use('/api/checkins', require('./routes/checkin.routes'));
 app.use('/api/partnerships', require('./routes/partnership.routes'));
-// app.use('/api/notifications', require('./routes/notification.routes'));
+app.use('/api/notifications', require('./routes/notification.routes'));
 
 // Periodic background task: check for missed check-ins and reset streaks
 try {

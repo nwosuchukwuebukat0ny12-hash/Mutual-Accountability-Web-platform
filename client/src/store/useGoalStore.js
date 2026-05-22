@@ -3,6 +3,7 @@ import axiosInstance from "../lib/axios";
 
 export const useGoalStore = create((set) => ({
   goals: [],
+  checkInHistory: {},
   isLoading: false,
 
   fetchGoals: async () => {
@@ -60,6 +61,23 @@ export const useGoalStore = create((set) => ({
     } catch (error) {
       console.error("Error in submitCheckIn:", error);
       return { success: false, message: error.response?.data?.message || "Failed to submit check-in" };
+    }
+  },
+
+  fetchCheckInHistory: async (goalId) => {
+    try {
+      const res = await axiosInstance.get(`/checkins/history/${goalId}`);
+      const history = res.data.data || res.data;
+      set((state) => ({
+        checkInHistory: {
+          ...state.checkInHistory,
+          [goalId]: Array.isArray(history) ? history : []
+        }
+      }));
+      return { success: true };
+    } catch (error) {
+      console.error("Error in fetchCheckInHistory:", error);
+      return { success: false, message: "Failed to fetch check-in history" };
     }
   },
 }));

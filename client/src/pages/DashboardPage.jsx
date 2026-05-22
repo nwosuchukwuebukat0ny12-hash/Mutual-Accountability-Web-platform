@@ -3,14 +3,14 @@ import { useOutletContext } from "react-router-dom";
 const DashboardPage = () => {
   const context = useOutletContext();
   const {
-    authUser, goals, partner, activePartnersList, activePactsList,
+    authUser, goals, partner, activePartnersList, activePactsList, checkInHistory,
     feed, approveCheckin, respondToInvite, searchUser, sendInvite,
     isGoalsLoading, pendingMilestonesCount, hasUncheckedActiveGoal, getDaysLeft, incomingPendingInvites,
     sidebarOpen, setSidebarOpen, isNewGoalModalOpen, setIsNewGoalModalOpen,
     goalTitle, setGoalTitle, goalCategory, setGoalCategory, goalDescription, setGoalDescription, goalDeadline, setGoalDeadline, goalFrequency, setGoalFrequency, goalMilestones, setGoalMilestones, goalError, setGoalError,
     searchUsername, setSearchUsername, searchResult, setSearchResult, searchError, setSearchError, isSearching, setIsSearching, inviteSent, setInviteSent, inviteGoalId, setInviteGoalId,
     isCheckInModalOpen, setIsCheckInModalOpen, checkInGoalId, setCheckInGoalId, checkInNote, setCheckInNote, checkInStake, setCheckInStake, checkInProgress, setCheckInProgress, checkInError, setCheckInError, isSubmittingCheckIn, setIsSubmittingCheckIn,
-    showToast, handleToggleMilestone, handleApproveCheckin, handleAddMilestoneField, handleMilestoneFieldChange, handleRemoveMilestoneField, handleCreateGoalSubmit, handleSearchPartnerSubmit, handleInvitePartnerSubmit, handleCreateCheckInSubmit,
+    showToast, handleToggleMilestone, handleApproveCheckin, handleAddMilestoneField, handleMilestoneFieldChange, handleRemoveMilestoneField, handleCreateGoalSubmit, handleSearchPartnerSubmit, handleInvitePartnerSubmit, handleCreateCheckInSubmit, handleSendNudge,
     settingsTimezone, setSettingsTimezone, settingsBio, setSettingsBio, settingsCategories, setSettingsCategories, updateProfileSettings
   } = context;
 
@@ -122,30 +122,35 @@ const DashboardPage = () => {
                             <div className="mb-6">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-2">30-Day Consistency</span>
                               <div className="grid grid-cols-10 gap-1">
-                                {Array.from({ length: 30 }).map((_, boxIdx) => {
-                                  // Dynamic data stub for heatmap
-                                  const rand = (goal._id.charCodeAt(0) + boxIdx) % 10;
+                                {Array.from({ length: 30 }).map((_, i) => {
+                                  const d = new Date();
+                                  d.setDate(d.getDate() - (29 - i));
+                                  const dateStr = d.toISOString().split('T')[0];
+                                  const history = checkInHistory[goal._id] || [];
+                                  const checkIn = history.find(c => c.createdAt.startsWith(dateStr));
+                                  
                                   let statusClass = "bg-[#e2e8f0]";
-                                  let tooltipMsg = "No check-in";
-                                  if (boxIdx < 28) {
-                                    if (rand > 2) {
+                                  let tooltipMsg = `No check-in (${dateStr})`;
+                                  
+                                  if (checkIn) {
+                                    if (checkIn.status === 'approved') {
                                       statusClass = "bg-[#10b981]";
-                                      tooltipMsg = "Verified check-in!";
-                                    } else if (rand === 2) {
-                                      statusClass = "bg-[#f97316]";
-                                      tooltipMsg = "Pending partner approval";
+                                      tooltipMsg = `Verified check-in! (${dateStr})`;
                                     } else {
-                                      statusClass = "bg-[#ef4444]";
-                                      tooltipMsg = "Missed check-in";
+                                      statusClass = "bg-[#f97316]";
+                                      tooltipMsg = `Pending partner approval (${dateStr})`;
                                     }
+                                  } else if (new Date(dateStr) < new Date(goal.createdAt).setHours(0,0,0,0)) {
+                                    statusClass = "bg-[#e2e8f0]";
+                                    tooltipMsg = `Before goal creation (${dateStr})`;
+                                  } else if (new Date(dateStr) < new Date().setHours(0,0,0,0)) {
+                                    statusClass = "bg-[#ef4444]";
+                                    tooltipMsg = `Missed check-in (${dateStr})`;
                                   }
+
                                   return (
-                                    <div
-                                      key={boxIdx}
-                                      className={`w-full aspect-square rounded-sm ${statusClass} cursor-pointer hover:opacity-80 transition-opacity relative group`}
-                                    >
-                                      {/* Tooltip */}
-                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-max max-w-[120px] bg-gray-900 text-white text-[10px] py-1 px-2 rounded z-20 pointer-events-none">
+                                    <div key={i} className={`w-full pt-[100%] rounded-sm ${statusClass} relative group cursor-pointer`}>
+                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block z-20 whitespace-nowrap bg-gray-800 text-white text-[10px] font-bold py-1 px-2 rounded">
                                         {tooltipMsg}
                                       </div>
                                     </div>
@@ -243,7 +248,7 @@ const DashboardPage = () => {
                                 <div className="h-full rounded-full transition-all duration-1000 ease-out bg-[#00685f]" style={{ width: `${pact.progress}%` }}></div>
                               </div>
                               <button
-                                onClick={() => showToast(`Fire Nudge sent to ${p.name}! ⚡`)}
+                                onClick={() => handleSendNudge(p._id)}
                                 className="mt-2 w-full py-2 bg-[#fff7ed] hover:bg-[#ffedd5] text-[#ea580c] text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
                               >
                                 <span>⚡</span> Send Fire Nudge

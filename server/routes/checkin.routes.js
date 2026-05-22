@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { submitCheckIn, approveCheckIn, getCheckInFeed } = require('../controllers/checkinController');
+const { submitCheckIn, approveCheckIn, getCheckInFeed, getCheckInHistory, addComment, addReaction, getPublicCheckIns } = require('../controllers/checkinController');
 const { protect } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { submitCheckInSchema } = require('../utils/validators');
@@ -24,5 +24,25 @@ router.get('/feed', protect, getCheckInFeed);
 // @desc    Verify and approve a partner's check-in
 // @access  Private
 router.post('/approve/:id', protect, approveCheckIn);
+
+// @route   GET /api/checkins/history/:goalId
+// @desc    Get check-in history for a specific goal
+// @access  Private
+router.get('/history/:goalId', protect, getCheckInHistory);
+
+// @route   GET /api/checkins/public
+// @desc    Get public check-in feed
+// @access  Private
+router.get('/public', protect, getPublicCheckIns);
+
+// @route   POST /api/checkins/:id/comments
+// @desc    Add a comment to a check-in
+// @access  Private
+router.post('/:id/comments', protect, addComment);
+
+// @route   POST /api/checkins/:id/reactions
+// @desc    Add a reaction to a check-in
+// @access  Private
+router.post('/:id/reactions', protect, addReaction);
 
 module.exports = router;
