@@ -4,6 +4,7 @@ import axiosInstance from "../lib/axios";
 export const useGoalStore = create((set) => ({
   goals: [],
   checkInHistory: {},
+  goalCheckIns: {},
   isLoading: false,
 
   fetchGoals: async () => {
@@ -78,6 +79,25 @@ export const useGoalStore = create((set) => ({
     } catch (error) {
       console.error("Error in fetchCheckInHistory:", error);
       return { success: false, message: "Failed to fetch check-in history" };
+    }
+  },
+
+  // Fetch check-ins for a specific goal (returns data for heatmap)
+  fetchGoalCheckIns: async (goalId) => {
+    try {
+      const res = await axiosInstance.get(`/checkins/history/${goalId}`);
+      const data = res.data.data || res.data;
+      const checkIns = Array.isArray(data) ? data : [];
+      set((state) => ({
+        goalCheckIns: {
+          ...state.goalCheckIns,
+          [goalId]: checkIns,
+        },
+      }));
+      return { success: true, data: checkIns };
+    } catch (error) {
+      console.error("Error in fetchGoalCheckIns:", error);
+      return { success: false, message: "Failed to fetch goal check-ins" };
     }
   },
 }));

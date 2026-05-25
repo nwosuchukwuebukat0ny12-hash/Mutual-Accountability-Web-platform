@@ -1,11 +1,14 @@
 import { useOutletContext } from "react-router-dom";
+import { useGoalStore } from "../store/useGoalStore";
 
 const GoalsPage = () => {
   const context = useOutletContext();
+
   const {
     authUser, goals, activePartnersList, setIsNewGoalModalOpen, checkInHistory,
     handleToggleMilestone, getDaysLeft
   } = context;
+
 
   return (
     <>
@@ -60,24 +63,10 @@ const GoalsPage = () => {
                           const dateStr = d.toISOString().split('T')[0];
                           const history = checkInHistory[goal._id] || [];
                           const checkIn = history.find(c => c.createdAt.startsWith(dateStr));
-
-                          // Determine if this date is an expected check-in day based on frequency
-                          const freq = goal.frequency || 'daily';
-                          const goalStart = new Date(goal.createdAt);
-                          goalStart.setHours(0, 0, 0, 0);
-                          const cellDate = new Date(dateStr);
-                          const diffDays = Math.round((cellDate - goalStart) / (1000 * 60 * 60 * 24));
-
-                          let isExpectedDay = true; // daily by default
-                          if (freq === 'every2days') {
-                            isExpectedDay = diffDays >= 0 && diffDays % 2 === 0;
-                          } else if (freq === 'weekly') {
-                            isExpectedDay = diffDays >= 0 && diffDays % 7 === 0;
-                          }
-
+                          
                           let statusClass = "bg-[#e2e8f0]";
                           let tooltipMsg = `No check-in (${dateStr})`;
-
+                          
                           if (checkIn) {
                             if (checkIn.status === 'approved') {
                               statusClass = "bg-[#10b981]";
@@ -86,25 +75,17 @@ const GoalsPage = () => {
                               statusClass = "bg-[#f97316]";
                               tooltipMsg = `Pending partner approval (${dateStr})`;
                             }
-                          } else if (cellDate < goalStart) {
+                          } else if (new Date(dateStr) < new Date(goal.createdAt).setHours(0,0,0,0)) {
                             statusClass = "bg-[#e2e8f0]";
                             tooltipMsg = `Before goal creation (${dateStr})`;
-                          } else if (cellDate < new Date(new Date().setHours(0,0,0,0))) {
-                            if (isExpectedDay) {
-                              statusClass = "bg-[#ef4444]";
-                              tooltipMsg = `Missed check-in (${dateStr})`;
-                            } else {
-                              statusClass = "bg-[#e2e8f0]";
-                              tooltipMsg = `Off day (${dateStr})`;
-                            }
+                          } else if (new Date(dateStr) < new Date().setHours(0,0,0,0)) {
+                            statusClass = "bg-[#ef4444]";
+                            tooltipMsg = `Missed check-in (${dateStr})`;
                           }
 
                           return (
-                            <div
-                              key={i}
-                              className={`w-full pt-[100%] rounded-sm ${statusClass} cursor-pointer hover:opacity-80 transition-opacity relative group`}
-                            >
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-max max-w-[120px] bg-gray-900 text-white text-[10px] py-1 px-2 rounded z-20 pointer-events-none">
+                            <div key={i} className={`w-full pt-[100%] rounded-sm ${statusClass} relative group cursor-pointer`}>
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block z-20 whitespace-nowrap bg-gray-800 text-white text-[10px] font-bold py-1 px-2 rounded">
                                 {tooltipMsg}
                               </div>
                             </div>
