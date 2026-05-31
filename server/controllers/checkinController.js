@@ -132,48 +132,46 @@ const approveCheckIn = async (req, res) => {
     // Decoupled: Check-in progress no longer overrides milestone-driven goal progress.
     // Progress remains historical to the check-in only.
 
-    // 6. Dynamically calculate the streak for the check-in OWNER
+    // 6. Dynamically calculate the streak for the check-in OWNER based on Check-in Submission Date
     const checkinOwner = await User.findById(checkIn.user);
     const userTimezone = checkinOwner.timezone || 'UTC';
-    const todayStr = formatInTimeZone(now, userTimezone, 'yyyy-MM-dd');
     let newCurrentStreak = checkinOwner.currentStreak;
 
-    // Check if this is the user's first ever approved check-in
-    const otherApprovedCount = await CheckIn.countDocuments({
+    // Find the most recent approved check-in (excluding the current one)
+    const lastApprovedCheckIn = await CheckIn.findOne({
       user: checkIn.user,
       status: 'approved',
       _id: { $ne: checkIn._id }
-    });
+    }).sort({ createdAt: -1 });
 
-    if (otherApprovedCount > 0 && checkinOwner.lastActiveAt) {
-      const lastActiveStr = formatInTimeZone(checkinOwner.lastActiveAt, userTimezone, 'yyyy-MM-dd');
-      
-      if (lastActiveStr === todayStr) {
-        // User already active today, streak remains unchanged
+    if (newCurrentStreak === 0) {
+      // If streak was reset to 0, start fresh from 1
+      newCurrentStreak = 1;
+    } else if (lastApprovedCheckIn) {
+      const checkinDateStr = formatInTimeZone(checkIn.createdAt, userTimezone, 'yyyy-MM-dd');
+      const lastCheckinDateStr = formatInTimeZone(lastApprovedCheckIn.createdAt, userTimezone, 'yyyy-MM-dd');
+
+      if (checkinDateStr === lastCheckinDateStr) {
+        // Double check-in on the same calendar day, streak remains unchanged
       } else {
-        const [todayYear, todayMonth, todayDate] = todayStr.split('-').map(Number);
-        const [lastYear, lastMonth, lastDate] = lastActiveStr.split('-').map(Number);
-        
-        const localToday = new Date(todayYear, todayMonth - 1, todayDate);
-        const localLastActive = new Date(lastYear, lastMonth - 1, lastDate);
+        const [currYear, currMonth, currDate] = checkinDateStr.split('-').map(Number);
+        const [lastYear, lastMonth, lastDate] = lastCheckinDateStr.split('-').map(Number);
 
-        const daysDifference = differenceInCalendarDays(localToday, localLastActive);
+        const localCurr = new Date(currYear, currMonth - 1, currDate);
+        const localLast = new Date(lastYear, lastMonth - 1, lastDate);
+
+        const daysDifference = differenceInCalendarDays(localCurr, localLast);
 
         if (daysDifference === 1) {
-          // Checked in yesterday, streak continues!
+          // Checked in on consecutive calendar days, streak continues!
           newCurrentStreak += 1;
         } else if (daysDifference > 1) {
-          // Missed one or more days, streak resets
+          // Missed one or more days, streak resets to 1
           newCurrentStreak = 1;
         }
       }
     } else {
       // First ever approved check-in
-      newCurrentStreak = 1;
-    }
-
-    // Safety Net: if currentStreak is 0 but we have approved check-ins, it must be at least 1!
-    if (newCurrentStreak === 0) {
       newCurrentStreak = 1;
     }
 
