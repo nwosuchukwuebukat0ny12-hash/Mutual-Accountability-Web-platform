@@ -3,6 +3,7 @@ import axiosInstance from "../lib/axios";
 
 export const useGoalStore = create((set) => ({
   goals: [],
+  completedGoals: [],
   checkInHistory: {},
   isLoading: false,
 
@@ -16,6 +17,21 @@ export const useGoalStore = create((set) => ({
     } catch (error) {
       console.error("Error in fetchGoals:", error);
       return { success: false, message: error.response?.data?.message || "An error occurred while fetching goals" };
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  fetchCompletedGoals: async () => {
+    set({ isLoading: true });
+    try {
+      const res = await axiosInstance.get("/goals?status=completed");
+      const goalsList = res.data.data || res.data;
+      set({ completedGoals: Array.isArray(goalsList) ? goalsList : [] });
+      return { success: true };
+    } catch (error) {
+      console.error("Error in fetchCompletedGoals:", error);
+      return { success: false, message: "Failed to fetch completed goals" };
     } finally {
       set({ isLoading: false });
     }

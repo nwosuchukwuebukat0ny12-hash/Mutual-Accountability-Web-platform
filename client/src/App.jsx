@@ -13,6 +13,7 @@ import CommunityPage from "./pages/CommunityPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function App() {
   const { authUser, checkAuth, isCheckingAuth } = useAuthStore();
@@ -31,28 +32,30 @@ function App() {
 
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route 
-          path="/login" 
-          element={!authUser ? <LoginPage /> : <Navigate to="/dashboard" />} 
-        />
-        <Route 
-          path="/register" 
-          element={!authUser ? <RegisterPage /> : <Navigate to="/dashboard" />} 
-        />
-        <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/goals" element={<GoalsPage />} />
-          <Route path="/partners" element={<PartnersPage />} />
-          <Route path="/community" element={<CommunityPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Route>
-        
-        {/* Fallback route */}
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route 
+            path="/login" 
+            element={!authUser ? <LoginPage /> : <Navigate to="/dashboard" />} 
+          />
+          <Route 
+            path="/register" 
+            element={!authUser ? <RegisterPage /> : <Navigate to="/dashboard" />} 
+          />
+          <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/partners" element={<PartnersPage />} />
+            <Route path="/community" element={<CommunityPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Route>
+          
+          {/* Fallback route */}
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </ErrorBoundary>
     </Router>
   );
 }

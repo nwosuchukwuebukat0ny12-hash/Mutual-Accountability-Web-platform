@@ -40,7 +40,7 @@ export const usePartnershipStore = create((set, get) => ({
   fetchFeed: async () => {
     set({ isLoading: true });
     try {
-      const res = await axiosInstance.get("/checkins/feed?limit=10");
+      const res = await axiosInstance.get("/checkins/feed?limit=6");
       const feedItems = res.data.data || [];
       set({ 
         feed: feedItems, 
@@ -62,7 +62,7 @@ export const usePartnershipStore = create((set, get) => ({
 
     set({ feedIsLoadingMore: true });
     try {
-      const res = await axiosInstance.get(`/checkins/feed?cursor=${feedNextCursor}&limit=10`);
+      const res = await axiosInstance.get(`/checkins/feed?cursor=${feedNextCursor}&limit=6`);
       const newItems = res.data.data || [];
       
       const mergedMap = new Map();
@@ -102,7 +102,7 @@ export const usePartnershipStore = create((set, get) => ({
   fetchPublicFeed: async () => {
     set({ isLoading: true });
     try {
-      const res = await axiosInstance.get("/checkins/public?limit=10");
+      const res = await axiosInstance.get("/checkins/public?limit=6");
       const feedItems = res.data.data || [];
       set({ 
         publicFeed: feedItems, 
@@ -124,7 +124,7 @@ export const usePartnershipStore = create((set, get) => ({
 
     set({ publicFeedIsLoadingMore: true });
     try {
-      const res = await axiosInstance.get(`/checkins/public?cursor=${publicFeedNextCursor}&limit=10`);
+      const res = await axiosInstance.get(`/checkins/public?cursor=${publicFeedNextCursor}&limit=6`);
       const newItems = res.data.data || [];
       
       const mergedMap = new Map();
@@ -236,7 +236,7 @@ export const usePartnershipStore = create((set, get) => ({
 
   approveCheckin: async (feedId, checkInId) => {
     try {
-      if (checkInId && !checkInId.includes("mock")) {
+      if (checkInId) {
         await axiosInstance.post(`/checkins/approve/${checkInId}`);
       }
       

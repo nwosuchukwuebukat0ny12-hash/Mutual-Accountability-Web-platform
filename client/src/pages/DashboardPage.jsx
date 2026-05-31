@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 
 const DashboardPage = () => {
@@ -16,6 +16,10 @@ const DashboardPage = () => {
   } = context;
 
   const observerRef = useRef(null);
+  const [heatmapRange, setHeatmapRange] = useState(30);
+
+  const goalsThisWeek = goals.filter(g => new Date(g.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length;
+  const uniquePartnersCount = new Set(activePartnersList.map(p => p.partner._id)).size;
 
   useEffect(() => {
     if (!feedHasMore || feedIsLoadingMore) return;
@@ -82,7 +86,9 @@ const DashboardPage = () => {
                   <h3 className="text-sm font-semibold text-gray-600 mb-3">Active Goals</h3>
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl font-bold text-[#00685f] leading-none">{goals.filter(g => g.status === 'active').length}</span>
-                    <span className="text-xs font-bold text-[#c26d2e]">+2 this week</span>
+                    {goalsThisWeek > 0 && (
+                      <span className="text-xs font-bold text-[#c26d2e]">+{goalsThisWeek} this week</span>
+                    )}
                   </div>
                 </div>
                 <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -95,7 +101,7 @@ const DashboardPage = () => {
                 <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
                   <h3 className="text-sm font-semibold text-gray-600 mb-3">Partners</h3>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-bold text-[#4c51bf] leading-none">{activePartnersList.length}</span>
+                    <span className="text-4xl font-bold text-[#4c51bf] leading-none">{uniquePartnersCount}</span>
                     <span className="text-sm font-medium text-gray-500">active</span>
                   </div>
                 </div>
@@ -180,11 +186,24 @@ const DashboardPage = () => {
 
                             {/* GitHub-Style Habit Heatmap */}
                             <div className="mb-6">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-2">30-Day Consistency</span>
-                              <div className="grid grid-cols-10 gap-1">
-                                {Array.from({ length: 30 }).map((_, i) => {
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">{heatmapRange}-Day Consistency</span>
+                                <div className="flex space-x-1">
+                                  {[7, 14, 30].map(range => (
+                                    <button
+                                      key={range}
+                                      onClick={() => setHeatmapRange(range)}
+                                      className={`text-[9px] px-1.5 py-0.5 rounded-sm ${heatmapRange === range ? 'bg-gray-200 text-gray-700 font-bold' : 'text-gray-400 hover:bg-gray-100'}`}
+                                    >
+                                      {range}d
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className={`grid ${heatmapRange === 7 ? 'grid-cols-7' : heatmapRange === 14 ? 'grid-cols-7' : 'grid-cols-10'} gap-1`}>
+                                {Array.from({ length: heatmapRange }).map((_, i) => {
                                   const d = new Date();
-                                  d.setDate(d.getDate() - (29 - i));
+                                  d.setDate(d.getDate() - (heatmapRange - 1 - i));
                                   const dateStr = d.toISOString().split('T')[0];
                                   const history = checkInHistory[goal._id] || [];
                                   const checkIn = history.find(c => c.createdAt.startsWith(dateStr));

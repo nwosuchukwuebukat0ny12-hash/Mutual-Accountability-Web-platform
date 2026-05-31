@@ -32,7 +32,7 @@ const SettingsPage = () => {
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Target Accountability Focus</label>
             <div className="flex gap-2 flex-wrap">
-              {['fitness', 'study', 'code', 'finance', 'health'].map((cat) => {
+              {['fitness', 'study', 'career', 'habit', 'other'].map((cat) => {
                 const active = settingsCategories.includes(cat);
                 return (
                   <button

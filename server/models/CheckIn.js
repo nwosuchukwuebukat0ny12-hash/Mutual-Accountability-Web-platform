@@ -22,9 +22,9 @@ const CheckinSchema = new Schema({
     createdAt: { type: Date, default: Date.now }
   }],
   reactions: {
-    fire: { type: Number, default: 0 },
-    clap: { type: Number, default: 0 },
-    muscle: { type: Number, default: 0 }
+    fire: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    clap: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    muscle: [{ type: Schema.Types.ObjectId, ref: 'User' }]
   }
 }, { timestamps: true });
 

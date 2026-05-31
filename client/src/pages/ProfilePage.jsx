@@ -1,7 +1,17 @@
+import { useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
+import useStatsStore from "../store/useStatsStore";
+import { useGoalStore } from "../store/useGoalStore";
 
 const ProfilePage = () => {
   const context = useOutletContext();
+  const { stats, fetchMyStats } = useStatsStore();
+  const { completedGoals, fetchCompletedGoals } = useGoalStore();
+
+  useEffect(() => {
+    fetchMyStats();
+    fetchCompletedGoals();
+  }, [fetchMyStats, fetchCompletedGoals]);
   const {
     authUser, goals, partner, activePartnersList, activePactsList,
     feed, approveCheckin, respondToInvite, searchUser, sendInvite,
@@ -29,12 +39,12 @@ const ProfilePage = () => {
                 <div className="text-center md:text-left space-y-3 flex-1">
                   <div>
                     <div className="flex flex-col md:flex-row md:items-center gap-2">
-                      <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">{authUser?.name || "Ebuka"}</h3>
+                      <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">{authUser?.name}</h3>
                       <span className="self-center bg-[#e6f4f2] text-[#00685f] text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-[#00685f]/20">
                         verified peer
                       </span>
                     </div>
-                    <p className="text-sm text-gray-500 font-bold mt-1">@{authUser?.username || "ebuka_dev"}</p>
+                    <p className="text-sm text-gray-500 font-bold mt-1">@{authUser?.username}</p>
                   </div>
                   {authUser?.bio ? (
                     <p className="text-sm text-gray-600 italic bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-gray-100/80 shadow-xs max-w-2xl leading-relaxed">
@@ -78,11 +88,11 @@ const ProfilePage = () => {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between p-3 bg-orange-50/50 rounded-xl border border-orange-100/50">
                         <span className="text-xs font-bold text-orange-800">Current Active</span>
-                        <span className="text-lg font-black text-[#ea580c]">🔥 {authUser?.currentStreak || 5} Days</span>
+                        <span className="text-lg font-black text-[#ea580c]">🔥 {authUser?.currentStreak || 0} Days</span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-amber-50/50 rounded-xl border border-amber-100/50">
                         <span className="text-xs font-bold text-amber-800">All-Time Longest</span>
-                        <span className="text-lg font-black text-[#c26d2e]">🏅 24 Days</span>
+                        <span className="text-lg font-black text-[#c26d2e]">🏅 {authUser?.longestStreak || 0} Days</span>
                       </div>
                     </div>
                   </div>
@@ -94,20 +104,20 @@ const ProfilePage = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-center">
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Active Pacts</span>
-                      <span className="text-lg font-extrabold text-[#4c51bf]">{activePactsList.length} Active</span>
+                      <span className="text-lg font-extrabold text-[#4c51bf]">{stats?.activePacts || activePactsList.length} Active</span>
                     </div>
                     <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-center">
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Dissolved Pacts</span>
-                      <span className="text-lg font-extrabold text-red-600">1 dissolved</span>
+                      <span className="text-lg font-extrabold text-red-600">{stats?.dissolvedPacts || 0} dissolved</span>
                     </div>
                     <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-center">
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Goals Metrics</span>
-                      <span className="text-lg font-extrabold text-[#00685f]">12 / 14</span>
+                      <span className="text-lg font-extrabold text-[#00685f]">{stats?.completedGoals || 0} / {stats?.failedGoals || 0}</span>
                       <span className="text-[9px] text-gray-400 block font-medium">completed / failed</span>
                     </div>
                     <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-center">
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Verifications</span>
-                      <span className="text-lg font-extrabold text-emerald-600">84 checks</span>
+                      <span className="text-lg font-extrabold text-emerald-600">{stats?.totalVerifications || 0} checks</span>
                     </div>
                   </div>
                 </div>
@@ -121,36 +131,44 @@ const ProfilePage = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
 
                   {/* Badge 1 */}
-                  <div className="p-5 border border-gray-200 rounded-2xl flex flex-col items-center text-center bg-slate-50/50 hover:border-gray-300 transition-colors">
+                  <div className={`p-5 border rounded-2xl flex flex-col items-center text-center transition-colors ${authUser?.badges?.includes('pact_keeper') ? 'border-gray-200 bg-slate-50/50 hover:border-gray-300' : 'border-gray-100 bg-white opacity-50 grayscale'}`}>
                     <span className="text-4xl mb-3 filter drop-shadow-md">🛡️</span>
                     <h5 className="font-extrabold text-sm text-gray-900 leading-tight mb-1">Pact Keeper</h5>
-                    <p className="text-[11px] text-gray-500 font-medium leading-normal mb-3">Completed a 1-month partnership without miss.</p>
-                    <span className="bg-green-50 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-green-150">
-                      Earned
-                    </span>
+                    <p className="text-[11px] text-gray-500 font-medium leading-normal mb-3">Completed 5 check-ins without a miss.</p>
+                    {authUser?.badges?.includes('pact_keeper') ? (
+                      <span className="bg-green-50 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-green-150">Earned</span>
+                    ) : (
+                      <span className="bg-gray-100 text-gray-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-gray-200">Locked</span>
+                    )}
                   </div>
 
                   {/* Badge 2 */}
-                  <div className="p-5 border border-gray-200 rounded-2xl flex flex-col items-center text-center bg-slate-50/50 hover:border-gray-300 transition-colors">
+                  <div className={`p-5 border rounded-2xl flex flex-col items-center text-center transition-colors ${authUser?.badges?.includes('nudge_master') ? 'border-gray-200 bg-slate-50/50 hover:border-gray-300' : 'border-gray-100 bg-white opacity-50 grayscale'}`}>
                     <span className="text-4xl mb-3 filter drop-shadow-md">⚡</span>
                     <h5 className="font-extrabold text-sm text-gray-900 leading-tight mb-1">Nudge Master</h5>
                     <p className="text-[11px] text-gray-500 font-medium leading-normal mb-3">Sent 15 fire nudges to support accountability partners.</p>
-                    <span className="bg-green-50 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-green-150">
-                      Earned
-                    </span>
+                    {authUser?.badges?.includes('nudge_master') ? (
+                      <span className="bg-green-50 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-green-150">Earned</span>
+                    ) : (
+                      <span className="bg-gray-100 text-gray-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-gray-200">Locked</span>
+                    )}
                   </div>
 
                   {/* Badge 3 */}
-                  <div className="p-5 border border-gray-200 rounded-2xl flex flex-col items-center text-center bg-slate-50/50 opacity-75 relative overflow-hidden group">
-                    <span className="text-4xl mb-3 filter drop-shadow-md grayscale group-hover:grayscale-0 transition-all">🔥</span>
+                  <div className={`p-5 border rounded-2xl flex flex-col items-center text-center transition-colors relative overflow-hidden group ${authUser?.badges?.includes('streak_legend') ? 'border-gray-200 bg-slate-50/50' : 'border-gray-100 bg-white opacity-75'}`}>
+                    <span className={`text-4xl mb-3 filter drop-shadow-md transition-all ${authUser?.badges?.includes('streak_legend') ? '' : 'grayscale group-hover:grayscale-0'}`}>🔥</span>
                     <h5 className="font-extrabold text-sm text-gray-900 leading-tight mb-1">Streak Legend</h5>
                     <p className="text-[11px] text-gray-500 font-medium leading-normal mb-3">Maintain a continuous 14-day check-in streak.</p>
                     <div className="w-full bg-gray-200 rounded-full h-1 mb-2">
-                      <div className="bg-orange-500 h-full rounded-full" style={{ width: `${Math.floor((authUser?.currentStreak || 5) / 14 * 100)}%` }}></div>
+                      <div className="bg-orange-500 h-full rounded-full" style={{ width: `${Math.floor(Math.min((authUser?.currentStreak || 0) / 14 * 100, 100))}%` }}></div>
                     </div>
-                    <span className="bg-gray-100 text-gray-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                      {authUser?.currentStreak || 5}/14 days
-                    </span>
+                    {authUser?.badges?.includes('streak_legend') ? (
+                      <span className="bg-green-50 text-green-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-green-150">Earned</span>
+                    ) : (
+                      <span className="bg-gray-100 text-gray-500 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        {authUser?.currentStreak || 0}/14 days
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -187,21 +205,19 @@ const ProfilePage = () => {
                   <div className="pt-4 border-t border-gray-100">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Past Completed Successes</h4>
                     <div className="space-y-3">
-                      {[
-                        { title: "Complete MERN Stack Microservices Course", category: "Study", date: "April 2026" },
-                        { title: "Morning Running Routine (100km Challenge)", category: "Fitness", date: "March 2026" },
-                        { title: "Read 12 Business & Tech Books in Q1", category: "Habit", date: "March 2026" }
-                      ].map((item, idx) => (
-                        <div key={idx} className="p-4 border border-gray-150 rounded-xl flex justify-between items-center bg-gray-50/50">
+                      {completedGoals && completedGoals.length > 0 ? completedGoals.map((item) => (
+                        <div key={item._id} className="p-4 border border-gray-150 rounded-xl flex justify-between items-center bg-gray-50/50">
                           <div>
                             <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{item.category}</span>
                             <h5 className="font-bold text-sm text-gray-700 leading-tight mt-0.5 line-through decoration-gray-400">{item.title}</h5>
                           </div>
                           <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                            ✓ {item.date}
+                            ✓ {new Date(item.updatedAt).toLocaleDateString()}
                           </span>
                         </div>
-                      ))}
+                      )) : (
+                        <p className="text-xs text-gray-400 italic">No completed goals yet. Keep going!</p>
+                      )}
                     </div>
                   </div>
                 </div>

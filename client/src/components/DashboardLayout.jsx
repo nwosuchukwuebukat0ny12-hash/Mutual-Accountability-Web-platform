@@ -8,10 +8,12 @@ import Header from "./Dashboard/Header";
 import NewGoalModal from "./Modals/NewGoalModal";
 import CheckInModal from "./Modals/CheckInModal";
 import { connectSocket, disconnectSocket } from '../lib/socket';
+import useNotificationStore from "../store/useNotificationStore";
 
 const DashboardLayout = () => {
   const { authUser, logout, updateProfileSettings } = useAuthStore();
   const { goals, createGoal, toggleMilestone, fetchGoals, submitCheckIn, isLoading: isGoalsLoading, checkInHistory, fetchCheckInHistory } = useGoalStore();
+  const { addNotification, fetchNotifications } = useNotificationStore();
 
   const {
     feed,
@@ -159,8 +161,20 @@ const DashboardLayout = () => {
     if (authUser?._id) {
       const socket = connectSocket(authUser._id);
 
+      socket.on('notification_received', (notification) => {
+        showToast(notification.message, 'success');
+        addNotification(notification);
+      });
+
       socket.on('nudge_received', (data) => {
         showToast(`${data.senderName} sent you a Fire Nudge! ⚡`, 'success');
+        addNotification({
+          _id: Date.now().toString(),
+          type: 'reminder',
+          message: data.message || `${data.senderName} sent you a Fire Nudge! ⚡ Keep up the consistency!`,
+          read: false,
+          createdAt: new Date().toISOString()
+        });
       });
 
       socket.on('checkin_approved', () => {

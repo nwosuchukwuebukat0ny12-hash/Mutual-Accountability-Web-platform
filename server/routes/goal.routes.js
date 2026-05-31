@@ -4,11 +4,12 @@ const { createGoal, getGoals, toggleMilestone } = require('../controllers/goalCo
 const { protect } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { createGoalSchema } = require('../utils/validators');
+const { auditUserStreak } = require('../middleware/streakAuditor');
 
 // @route   GET /api/goals
 // @desc    Get logged-in user's active goals
 // @access  Private
-router.get('/', protect, getGoals);
+router.get('/', protect, auditUserStreak, getGoals);
 // @route   POST /api/goals
 // @desc    Create a new goal
 // @access  Private

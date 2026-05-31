@@ -1,4 +1,5 @@
 import { useOutletContext } from "react-router-dom";
+import { useState } from "react";
 
 const GoalsPage = () => {
   const context = useOutletContext();
@@ -6,6 +7,8 @@ const GoalsPage = () => {
     authUser, goals, activePartnersList, setIsNewGoalModalOpen, checkInHistory,
     handleToggleMilestone, getDaysLeft
   } = context;
+
+  const [heatmapRange, setHeatmapRange] = useState(30);
 
   return (
     <>
@@ -52,11 +55,24 @@ const GoalsPage = () => {
 
                     {/* GitHub-Style Habit Heatmap */}
                     <div className="mb-6">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-2">30-Day Consistency</span>
-                      <div className="grid grid-cols-10 gap-1">
-                        {Array.from({ length: 30 }).map((_, i) => {
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">{heatmapRange}-Day Consistency</span>
+                        <div className="flex space-x-1">
+                          {[7, 14, 30].map(range => (
+                            <button
+                              key={range}
+                              onClick={() => setHeatmapRange(range)}
+                              className={`text-[9px] px-1.5 py-0.5 rounded-sm ${heatmapRange === range ? 'bg-gray-200 text-gray-700 font-bold' : 'text-gray-400 hover:bg-gray-100'}`}
+                            >
+                              {range}d
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className={`grid ${heatmapRange === 7 ? 'grid-cols-7' : heatmapRange === 14 ? 'grid-cols-7' : 'grid-cols-10'} gap-1`}>
+                        {Array.from({ length: heatmapRange }).map((_, i) => {
                           const d = new Date();
-                          d.setDate(d.getDate() - (29 - i));
+                          d.setDate(d.getDate() - (heatmapRange - 1 - i));
                           const dateStr = d.toISOString().split('T')[0];
                           const history = checkInHistory[goal._id] || [];
                           const checkIn = history.find(c => c.createdAt.startsWith(dateStr));

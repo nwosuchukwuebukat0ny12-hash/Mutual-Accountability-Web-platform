@@ -58,7 +58,14 @@ const createGoal = async (req, res) => {
  */
 const getGoals = async (req, res) => {
   try {
-    const goals = await Goal.find({ owner: req.user._id, status: 'active' });
+    const status = req.query.status;
+    const query = { owner: req.user._id };
+    if (status) {
+      query.status = status;
+    } else {
+      query.status = 'active';
+    }
+    const goals = await Goal.find(query);
     res.status(200).json({
       success: true,
       data: goals,

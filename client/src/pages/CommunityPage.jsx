@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useOutletContext } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
+import { usePartnershipStore } from "../store/usePartnershipStore";
 
 const CommunityPage = () => {
   const context = useOutletContext() || {};
@@ -9,6 +10,7 @@ const CommunityPage = () => {
   const publicFeedHasMore = context.publicFeedHasMore || false;
   const publicFeedIsLoadingMore = context.publicFeedIsLoadingMore || false;
   const fetchMorePublicFeed = context.fetchMorePublicFeed || (() => {});
+  const sendReaction = usePartnershipStore((state) => state.sendReaction);
 
   const observerRef = useRef(null);
 
@@ -89,8 +91,8 @@ const CommunityPage = () => {
                   key={post._id || index} 
                   className="p-5 border border-slate-200 rounded-md hover:border-slate-300 transition-colors bg-slate-50/50"
                 >
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-3">
+                  <div className="flex justify-between items-start mb-3 gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-md border border-slate-200 shadow-sm overflow-hidden bg-white shrink-0">
                         <img 
                           src={post.user?.avatar || `https://ui-avatars.com/api/?name=${post.user?.name || post.userName || 'User'}&background=ecfdf5&color=10B981`} 
@@ -98,36 +100,39 @@ const CommunityPage = () => {
                           className="w-full h-full object-cover" 
                         />
                       </div>
-                      <div>
-                        <h4 className="font-bold text-sm text-slate-900 leading-tight">
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-sm text-slate-900 leading-tight truncate">
                           {post.user?.name || post.userName || "Anonymous User"}
                         </h4>
-                        <p className="text-[10px] text-slate-500 font-medium">
+                        <p className="text-[10px] text-slate-500 font-medium truncate">
                           @{post.user?.username || post.username || "user"} • {post.createdAt ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }) : "recently"}
                         </p>
                       </div>
                     </div>
                     {(post.user?.currentStreak > 0 || post.streak > 0) && (
-                      <span className="bg-orange-50 text-[#F97316] text-[9px] font-bold px-2 py-0.5 rounded-sm border border-orange-100 shadow-sm">
+                      <span className="bg-orange-50 text-[#F97316] text-[9px] font-bold px-2 py-0.5 rounded-sm border border-orange-100 shadow-sm shrink-0 mt-1">
                         🔥 {post.user?.currentStreak || post.streak} Streak
                       </span>
                     )}
                   </div>
                   
-                  <p className="text-sm text-slate-700 leading-relaxed font-medium mb-4">
+                  <p className="text-sm text-slate-700 leading-relaxed font-medium mb-4 break-words whitespace-pre-wrap">
                     {post.note || post.content || "Completed a check-in."}
                   </p>
                   
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-[10px] font-bold text-slate-500">
-                    <span>
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-[10px] font-bold text-slate-500 gap-2">
+                    <div className="truncate min-w-0 flex-1">
                       Target: <span className="text-[#10B981]">{post.goal?.title || "Accountability Goal"}</span>
-                    </span>
+                    </div>
                     <button 
                       type="button" 
-                      onClick={() => context.showToast?.(`Nudged ${post.user?.name || post.userName || 'User'}! 🚀`)}
-                      className="text-[#10B981] hover:text-emerald-700 hover:underline flex items-center gap-1 transition-colors"
+                      onClick={() => {
+                        sendReaction(post._id, 'clap');
+                        context.showToast?.('Clap sent! 👏');
+                      }}
+                      className="text-[#10B981] hover:text-emerald-700 hover:underline flex items-center gap-1 transition-colors shrink-0"
                     >
-                      👍 Nudge Support
+                      👏 {post.reactions?.clap > 0 ? post.reactions.clap + ' ' : ''}Support
                     </button>
                   </div>
                 </div>
@@ -224,10 +229,10 @@ const CommunityPage = () => {
                 return (
                   <div 
                     key={user._id || index} 
-                    className="flex justify-between items-center p-3 bg-white border border-slate-200 rounded-md shadow-sm hover:shadow transition-shadow"
+                    className="flex justify-between items-center p-3 bg-white border border-slate-200 rounded-md shadow-sm hover:shadow transition-shadow gap-2"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold w-6 text-center text-slate-400">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="text-sm font-bold w-6 text-center text-slate-400 shrink-0">
                         {rankIcon}
                       </span>
                       <div className="w-8 h-8 rounded-md border border-slate-200 overflow-hidden bg-slate-50 shrink-0">
@@ -237,16 +242,16 @@ const CommunityPage = () => {
                           className="w-full h-full object-cover" 
                         />
                       </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900 leading-tight">
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-slate-900 leading-tight truncate">
                           {user.name || "Anonymous"}
                         </h4>
-                        <p className="text-[9px] text-slate-500 font-medium">
+                        <p className="text-[9px] text-slate-500 font-medium truncate">
                           @{user.username || "user"}
                         </p>
                       </div>
                     </div>
-                    <span className="text-xs font-bold text-[#F97316] bg-orange-50 px-2 py-1 rounded-sm border border-orange-100">
+                    <span className="text-xs font-bold text-[#F97316] bg-orange-50 px-2 py-1 rounded-sm border border-orange-100 shrink-0">
                       🔥 {user.currentStreak || 0}
                     </span>
                   </div>

@@ -3,7 +3,7 @@ const { Schema } = mongoose;
 
 const NotificationSchema = new Schema({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  type: { type: String, enum: ['streak_reset', 'reminder', 'info'], default: 'info' },
+  type: { type: String, enum: ['streak_reset', 'reminder', 'info', 'partnership_invite', 'partnership_accept', 'checkin_approved', 'comment', 'reaction'], default: 'info' },
   message: { type: String, required: true },
   data: { type: Object },
   read: { type: Boolean, default: false },

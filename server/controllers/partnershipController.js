@@ -1,6 +1,7 @@
 const Partnership = require('../models/Partnership');
 const User = require('../models/User');
 const Goal = require('../models/Goal');
+const { createNotification } = require('../utils/notifications');
 
 /**
  * @desc    Search for an accountability partner by username
@@ -14,34 +15,36 @@ const searchPartner = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Username is required' });
     }
 
-    const partner = await User.findOne({ username: username.toLowerCase().trim() })
-      .select('name username avatar bio currentStreak categories');
+    const partners = await User.find({ username: { $regex: username.trim(), $options: 'i' }, _id: { $ne: req.user._id } })
+      .select('name username avatar bio currentStreak categories')
+      .limit(10);
 
-    if (!partner) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+    if (!partners || partners.length === 0) {
+      return res.status(404).json({ success: false, message: 'No users found' });
     }
 
-    // Dynamic compatibility score calculation based on shared focus categories!
     const myCategories = req.user.categories || [];
-    const partnerCategories = partner.categories || [];
-    const shared = myCategories.filter(c => partnerCategories.includes(c));
-    const baseCompatibility = 75;
-    const mutualCompatibility = Math.min(99, baseCompatibility + (shared.length * 10) + Math.floor(Math.random() * 5));
+    
+    const mappedUsers = partners.map(partner => {
+      const partnerCategories = partner.categories || [];
+      const shared = myCategories.filter(c => partnerCategories.includes(c));
+      const baseCompatibility = 75;
+      const mutualCompatibility = Math.min(99, baseCompatibility + (shared.length * 10) + Math.floor(Math.random() * 5));
 
-    // Map to response format expected by Ebuka's custom UI cards
-    const mappedUser = {
-      _id: partner._id,
-      name: partner.name,
-      username: partner.username,
-      avatar: partner.avatar,
-      bio: partner.bio || "No bio set yet. Dedicated accountability seeker.",
-      mutualCompatibility,
-      focusCategories: partner.categories.length > 0 ? partner.categories : ["study", "habit"]
-    };
+      return {
+        _id: partner._id,
+        name: partner.name,
+        username: partner.username,
+        avatar: partner.avatar,
+        bio: partner.bio || "No bio set yet. Dedicated accountability seeker.",
+        mutualCompatibility,
+        focusCategories: partner.categories.length > 0 ? partner.categories : ["study", "habit"]
+      };
+    });
 
     res.status(200).json({
       success: true,
-      data: mappedUser,
+      data: mappedUsers,
     });
   } catch (error) {
     console.error('Search Partner Error:', error);
@@ -99,6 +102,14 @@ const invitePartner = async (req, res) => {
       requester: req.user._id,
       recipient: recipient._id,
       status: 'pending'
+    });
+
+    // Create persistent notification for target recipient
+    await createNotification(req.app, {
+      userId: recipient._id,
+      type: 'partnership_invite',
+      message: `${req.user.name} sent you a partnership invitation for goal: "${goal.title}"`,
+      data: { senderId: req.user._id, goalId }
     });
 
     res.status(201).json({
@@ -179,6 +190,16 @@ const respondToInvite = async (req, res) => {
           partnership.partnerGoal = partnerGoalId;
         }
       }
+
+      // Notify the requester that the invitation was accepted
+      const invitedGoal = await Goal.findById(partnership.goal);
+      const goalTitle = invitedGoal ? invitedGoal.title : "your goal";
+      await createNotification(req.app, {
+        userId: partnership.requester,
+        type: 'partnership_accept',
+        message: `${req.user.name} accepted your partnership request for goal: "${goalTitle}"! 🤝`,
+        data: { senderId: req.user._id, partnershipId }
+      });
     } else if (action === 'reject') {
       partnership.status = 'declined';
     }

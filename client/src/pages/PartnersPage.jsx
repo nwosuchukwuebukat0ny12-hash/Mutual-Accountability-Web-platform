@@ -1,4 +1,5 @@
 import { useOutletContext } from "react-router-dom";
+import { useEffect } from "react";
 
 const PartnersPage = () => {
   const context = useOutletContext();
@@ -11,8 +12,14 @@ const PartnersPage = () => {
     searchUsername, setSearchUsername, searchResult, setSearchResult, searchError, setSearchError, isSearching, setIsSearching, inviteSent, setInviteSent, inviteGoalId, setInviteGoalId,
     isCheckInModalOpen, setIsCheckInModalOpen, checkInGoalId, setCheckInGoalId, checkInNote, setCheckInNote, checkInStake, setCheckInStake, checkInProgress, setCheckInProgress, checkInError, setCheckInError, isSubmittingCheckIn, setIsSubmittingCheckIn,
     showToast, handleToggleMilestone, handleApproveCheckin, handleAddMilestoneField, handleMilestoneFieldChange, handleRemoveMilestoneField, handleCreateGoalSubmit, handleSearchPartnerSubmit, handleInvitePartnerSubmit, handleCreateCheckInSubmit, handleSendNudge,
-    settingsTimezone, setSettingsTimezone, settingsBio, setSettingsBio, settingsCategories, setSettingsCategories, updateProfileSettings
+    settingsTimezone, setSettingsTimezone, settingsBio, setSettingsBio, settingsCategories, setSettingsCategories, updateProfileSettings, fetchGoals
   } = context;
+
+  useEffect(() => {
+    if (fetchGoals) {
+      fetchGoals();
+    }
+  }, [fetchGoals]);
 
   return (
     <>
@@ -53,17 +60,17 @@ const PartnersPage = () => {
                 </div>
               )}
 
-              {/* Animated Search Result Card */}
-              {searchResult && (
-                <div className="bg-[#f8fafc] border border-gray-200 rounded-2xl p-6 mt-6 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* Animated Search Result Cards */}
+              {searchResult && searchResult.length > 0 && searchResult.map((result, index) => (
+                <div key={result._id || index} className="bg-[#f8fafc] border border-gray-200 rounded-2xl p-6 mt-6 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-xl shadow-inner border border-teal-200">
-                        {searchResult.name.charAt(0)}
+                        {result.name ? result.name.charAt(0) : '?'}
                       </div>
                       <div>
-                        <h4 className="text-base font-bold text-gray-900 tracking-tight">{searchResult.name}</h4>
-                        <span className="text-xs text-gray-500 font-medium">@{searchResult.username}</span>
+                        <h4 className="text-base font-bold text-gray-900 tracking-tight">{result.name}</h4>
+                        <span className="text-xs text-gray-500 font-medium">@{result.username}</span>
                       </div>
                     </div>
 
@@ -71,19 +78,19 @@ const PartnersPage = () => {
                     <div className="flex flex-col items-center">
                       <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Compatibility</span>
                       <span className="px-2.5 py-1 rounded-md bg-green-100 text-green-700 font-bold text-[10px] border border-green-200 shadow-sm">
-                        🎯 {searchResult.mutualCompatibility}%
+                        🎯 {result.mutualCompatibility}%
                       </span>
                     </div>
                   </div>
 
                   <p className="text-sm text-gray-600 italic bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    &quot;{searchResult.bio}&quot;
+                    &quot;{result.bio}&quot;
                   </p>
 
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-2">Focus Areas</span>
                     <div className="flex gap-2 flex-wrap">
-                      {searchResult.focusCategories.map((c, idx) => (
+                      {result.focusCategories && result.focusCategories.map((c, idx) => (
                         <span key={idx} className="px-3 py-1 rounded-lg bg-white border border-gray-200 text-gray-600 text-[10px] font-bold uppercase tracking-wide shadow-sm">
                           {c}
                         </span>
@@ -91,7 +98,7 @@ const PartnersPage = () => {
                     </div>
                   </div>
 
-                  {!inviteSent && goals.filter(g => g.status === 'active').length > 0 && (
+                  {!inviteSent && goals.filter(g => g.status === 'active' && !activePactsList.some(p => (p.myGoal?._id || p.goal?._id || p.goal) === g._id)).length > 0 && (
                     <div className="mt-4">
                       <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Select Associated Goal</label>
                       <select
@@ -100,7 +107,7 @@ const PartnersPage = () => {
                         className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#00685f]/20 focus:border-[#00685f] text-sm text-gray-700 font-medium"
                       >
                         <option value="">-- Choose Goal --</option>
-                        {goals.filter(g => g.status === 'active').map((goal) => (
+                        {goals.filter(g => g.status === 'active' && !activePactsList.some(p => (p.myGoal?._id || p.goal?._id || p.goal) === g._id)).map((goal) => (
                           <option key={goal._id} value={goal._id}>
                             {goal.title} ({goal.category})
                           </option>
@@ -116,14 +123,14 @@ const PartnersPage = () => {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleInvitePartnerSubmit(searchResult.username)}
+                      onClick={() => handleInvitePartnerSubmit(result.username)}
                       className="w-full bg-[#00685f] hover:bg-[#004d46] text-white py-3.5 font-bold text-sm uppercase tracking-widest rounded-xl transition-all shadow-md mt-4"
                     >
                       Send Accountability Invite
                     </button>
                   )}
                 </div>
-              )}
+              ))}
             </form>
           </div>
 

@@ -2,6 +2,7 @@ const CheckIn = require('../models/CheckIn');
 const Goal = require('../models/Goal');
 const Partnership = require('../models/Partnership');
 const User = require('../models/User');
+const { createNotification } = require('../utils/notifications');
 const { formatInTimeZone, toDate } = require('date-fns-tz');
 const { differenceInCalendarDays, addDays } = require('date-fns');
 
@@ -128,7 +129,8 @@ const approveCheckIn = async (req, res) => {
 
     const now = new Date();
     goal.lastCheckinAt = now;
-    if (checkIn.progress !== undefined) goal.progress = checkIn.progress;
+    // Decoupled: Check-in progress no longer overrides milestone-driven goal progress.
+    // Progress remains historical to the check-in only.
 
     // 6. Dynamically calculate the streak for the check-in OWNER
     const checkinOwner = await User.findById(checkIn.user);
@@ -184,9 +186,8 @@ const approveCheckIn = async (req, res) => {
     checkinOwner.lastActiveAt = now;
 
     // Badge triggers
-    if (newCurrentStreak === 7 && !checkinOwner.badges.includes('7_day_streak')) checkinOwner.badges.push('7_day_streak');
-    if (newCurrentStreak === 14 && !checkinOwner.badges.includes('14_day_streak')) checkinOwner.badges.push('14_day_streak');
-    if (newCurrentStreak === 30 && !checkinOwner.badges.includes('30_day_streak')) checkinOwner.badges.push('30_day_streak');
+    if (newCurrentStreak >= 5 && !checkinOwner.badges.includes('pact_keeper')) checkinOwner.badges.push('pact_keeper');
+    if (newCurrentStreak >= 14 && !checkinOwner.badges.includes('streak_legend')) checkinOwner.badges.push('streak_legend');
     
     // Check if goal is fully completed (100% progress)
     if (goal.progress === 100) {
@@ -202,6 +203,14 @@ const approveCheckIn = async (req, res) => {
     goal.nextCheckinDue = toDate(formatInTimeZone(deadlineDate, userTimezone, "yyyy-MM-dd'T'23:59:59.SSSXXX"), { timeZone: userTimezone });
 
     await goal.save();
+
+    // Persistent Notification for the owner
+    await createNotification(req.app, {
+      userId: checkIn.user,
+      type: 'checkin_approved',
+      message: `Your check-in for goal "${goal.title}" was approved by ${req.user.name}! 🤝`,
+      data: { partnerId: req.user._id, checkInId: checkIn._id }
+    });
 
     const io = req.app.get('io');
     if (io) {
@@ -292,7 +301,11 @@ const getCheckInFeed = async (req, res) => {
       approved: c.status === 'approved',
       isBadge: false,
       comments: c.comments || [],
-      reactions: c.reactions || { fire: 0, clap: 0, muscle: 0 },
+      reactions: {
+        fire: c.reactions?.fire?.length || 0,
+        clap: c.reactions?.clap?.length || 0,
+        muscle: c.reactions?.muscle?.length || 0
+      },
       createdAt: c.createdAt
     }));
 
@@ -312,8 +325,30 @@ const getCheckInHistory = async (req, res) => {
   try {
     const { goalId } = req.params;
     
-    // Ensure the goal belongs to the user or their active partner
-    // For simplicity right now, just returning the check-ins for this goal
+    const Goal = require('../models/Goal');
+    const Partnership = require('../models/Partnership');
+    
+    const goal = await Goal.findById(goalId);
+    if (!goal) return res.status(404).json({ success: false, message: 'Goal not found' });
+    
+    const isOwner = goal.owner.toString() === req.user._id.toString();
+    
+    let isPartner = false;
+    if (!isOwner) {
+      const activePartnership = await Partnership.findOne({
+        $or: [
+          { requester: req.user._id, recipient: goal.owner },
+          { requester: goal.owner, recipient: req.user._id }
+        ],
+        status: 'active'
+      });
+      isPartner = !!activePartnership;
+    }
+    
+    if (!isOwner && !isPartner && !goal.isPublic) {
+      return res.status(403).json({ success: false, message: 'Not authorized to view this goal history' });
+    }
+
     const checkIns = await CheckIn.find({ goal: goalId })
       .sort({ createdAt: 1 }); // Chronological order
       
@@ -334,8 +369,28 @@ const addComment = async (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ success: false, message: 'Comment text is required' });
 
-    const checkIn = await CheckIn.findById(req.params.id);
+    const checkIn = await CheckIn.findById(req.params.id).populate('goal');
     if (!checkIn) return res.status(404).json({ success: false, message: 'Check-in not found' });
+
+    const Goal = require('../models/Goal');
+    const Partnership = require('../models/Partnership');
+    const isOwner = checkIn.user.toString() === req.user._id.toString();
+    
+    let isPartner = false;
+    if (!isOwner) {
+      const activePartnership = await Partnership.findOne({
+        $or: [
+          { requester: req.user._id, recipient: checkIn.user },
+          { requester: checkIn.user, recipient: req.user._id }
+        ],
+        status: 'active'
+      });
+      isPartner = !!activePartnership;
+    }
+
+    if (!isOwner && !isPartner && !checkIn.goal.isPublic) {
+      return res.status(403).json({ success: false, message: 'Not authorized to comment on this check-in' });
+    }
 
     const comment = { user: req.user._id, text };
     checkIn.comments.push(comment);
@@ -343,6 +398,15 @@ const addComment = async (req, res) => {
 
     // Re-fetch to populate user
     const updatedCheckIn = await CheckIn.findById(req.params.id).populate('comments.user', 'name username');
+
+    if (checkIn.user.toString() !== req.user._id.toString()) {
+      await createNotification(req.app, {
+        userId: checkIn.user,
+        type: 'comment',
+        message: `${req.user.name} commented on your check-in: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`,
+        data: { senderId: req.user._id, checkInId: checkIn._id }
+      });
+    }
 
     const io = req.app.get('io');
     if (io) {
@@ -371,18 +435,63 @@ const addReaction = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid reaction type' });
     }
 
-    const checkIn = await CheckIn.findById(req.params.id);
+    const checkIn = await CheckIn.findById(req.params.id).populate('goal');
     if (!checkIn) return res.status(404).json({ success: false, message: 'Check-in not found' });
 
-    if (!checkIn.reactions) checkIn.reactions = { fire: 0, clap: 0, muscle: 0 };
-    checkIn.reactions[type] += 1;
+    const Goal = require('../models/Goal');
+    const Partnership = require('../models/Partnership');
+    const isOwner = checkIn.user.toString() === req.user._id.toString();
+    
+    let isPartner = false;
+    if (!isOwner) {
+      const activePartnership = await Partnership.findOne({
+        $or: [
+          { requester: req.user._id, recipient: checkIn.user },
+          { requester: checkIn.user, recipient: req.user._id }
+        ],
+        status: 'active'
+      });
+      isPartner = !!activePartnership;
+    }
+
+    if (!isOwner && !isPartner && !checkIn.goal.isPublic) {
+      return res.status(403).json({ success: false, message: 'Not authorized to react to this check-in' });
+    }
+
+    if (!checkIn.reactions) checkIn.reactions = { fire: [], clap: [], muscle: [] };
+    if (!checkIn.reactions[type]) checkIn.reactions[type] = [];
+    
+    const userId = req.user._id.toString();
+    const existingIndex = checkIn.reactions[type].findIndex(id => id.toString() === userId);
+    
+    if (existingIndex > -1) {
+      checkIn.reactions[type].splice(existingIndex, 1); // Toggle off
+    } else {
+      checkIn.reactions[type].push(req.user._id); // Toggle on
+    }
+    
     await checkIn.save();
+
+    const formattedReactions = {
+      fire: checkIn.reactions.fire.length,
+      clap: checkIn.reactions.clap.length,
+      muscle: checkIn.reactions.muscle.length
+    };
+
+    if (checkIn.user.toString() !== req.user._id.toString() && existingIndex === -1) {
+      await createNotification(req.app, {
+        userId: checkIn.user,
+        type: 'reaction',
+        message: `${req.user.name} reacted with ${type} to your check-in!`,
+        data: { senderId: req.user._id, checkInId: checkIn._id }
+      });
+    }
 
     const io = req.app.get('io');
     if (io) {
       io.to(`user_${checkIn.user.toString()}`).emit('reaction_added', {
         checkInId: req.params.id,
-        reactions: checkIn.reactions,
+        reactions: formattedReactions,
       });
     }
 
@@ -433,7 +542,11 @@ const getPublicCheckIns = async (req, res) => {
       note: c.note,
       createdAt: c.createdAt,
       comments: c.comments || [],
-      reactions: c.reactions || { fire: 0, clap: 0, muscle: 0 }
+      reactions: {
+        fire: c.reactions?.fire?.length || 0,
+        clap: c.reactions?.clap?.length || 0,
+        muscle: c.reactions?.muscle?.length || 0
+      }
     }));
 
     res.status(200).json({ success: true, data: feedItems, hasMore, nextCursor });

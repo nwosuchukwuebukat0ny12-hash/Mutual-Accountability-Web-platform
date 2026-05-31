@@ -3,6 +3,8 @@ const router = express.Router();
 const { protect } = require('../middleware/auth');
 const Notification = require('../models/Notification');
 
+const { createNotification } = require('../utils/notifications');
+
 // @desc    Send a Fire Nudge to a partner
 // @route   POST /api/notifications/nudge
 // @access  Private
@@ -15,21 +17,12 @@ router.post('/nudge', protect, async (req, res) => {
 
     const message = `${req.user.name} sent you a Fire Nudge! ⚡ Keep up the consistency!`;
 
-    const notification = await Notification.create({
-      user: recipientId,
+    const notification = await createNotification(req.app, {
+      userId: recipientId,
       type: 'reminder',
       message,
       data: { senderId: req.user._id, senderName: req.user.name }
     });
-
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`user_${recipientId}`).emit('nudge_received', {
-        message,
-        senderName: req.user.name,
-        senderId: req.user._id,
-      });
-    }
 
     res.status(201).json({
       success: true,
